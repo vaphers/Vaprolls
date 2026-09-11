@@ -126,7 +126,15 @@ Default settings are managed in `config.py`. Core configuration options include:
 ## Documentation
 
 For an in-depth breakdown of system architecture, data enrichment, the 11-column URL dataset specification, WebSocket streaming, and panel mechanics, refer to:
-- [`docs/FUNCTIONING.md`](docs/FUNCTIONING.md)
+- [Technical Documentation Index](docs/README.md)
+- [System Overview](docs/FUNCTIONING.md)
+- [Crawler Engine](docs/crawler_engine.md)
+- [Analysis Pipeline](docs/analysis_pipeline.md)
+- [URL Dataset Specification (11 Columns)](docs/url_dataset_specification.md)
+- [Database Architecture (SQLite WAL)](docs/database_architecture.md)
+- [Frontend Workspace & Draggable Panels](docs/frontend_workspace.md)
+- [API & WebSocket Telemetry](docs/api_and_websocket.md)
+- [Visual Design Style Guide](docs/visual_design_style_guide.md)
 
 ---
 

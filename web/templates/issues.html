@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full space-y-6 pb-16">
+
+    <!-- Header & Metric Pills -->
+    <div class="bg-white rounded-md border border-[#E5E0D8] p-6 shadow-xs">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-6 border-b border-[#EDE9E1]">
+            <div>
+                <span class="text-xs font-mono font-semibold uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                    Audit Issue Diagnostics
+                </span>
+                <h1 class="text-2xl font-black text-slate-900 mt-1">All Issues Explorer</h1>
+                <p class="text-sm text-slate-500 mt-0.5">Explore, group, filter, and inspect actionable technical and on-page SEO issues across all crawled pages.</p>
+            </div>
+
+            <!-- Severity Counters -->
+            <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                <span class="px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 font-bold border border-[#E5E0D8]">
+                    Total: {{ total_count }}
+                </span>
+                <span class="px-3 py-1.5 rounded-md bg-rose-100 text-rose-800 font-bold border border-rose-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    {{ crit_count }} Critical
+                </span>
+                <span class="px-3 py-1.5 rounded-md bg-amber-100 text-amber-800 font-bold border border-amber-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    {{ warn_count }} Warnings
+                </span>
+                <span class="px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 font-bold border border-blue-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    {{ info_count }} Info
+                </span>
+            </div>
+        </div>
+
+        <!-- Filter & Grouping Controls Bar -->
+        <form id="issues-filter-form" method="GET" class="pt-6 space-y-4">
+            <input type="hidden" name="group_by" id="input-group-by" value="{{ current_group_by }}">
+
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                <!-- View Mode Switcher -->
+                <div class="inline-flex rounded-md p-1 bg-slate-100 border border-[#E5E0D8] self-start">
+                    <button type="button" onclick="setGroupBy('type')" class="px-4 py-1.5 rounded-md text-xs font-bold transition-all {% if current_group_by == 'type' %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %} flex items-center gap-2">
+                        <svg class="w-4 h-4 text-sage-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Group by Issue Type
+                    </button>
+                    <button type="button" onclick="setGroupBy('flat')" class="px-4 py-1.5 rounded-md text-xs font-bold transition-all {% if current_group_by == 'flat' %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %} flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                        Flat Table View
+                    </button>
+                </div>
+
+                <!-- Instant Search Input -->
+                <div class="flex-1 max-w-md relative">
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Filter by URL, keyword, or issue name..." class="w-full pl-9 pr-4 py-2 text-xs rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sage-500 focus:border-sage-500">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+
+            <!-- Dropdown Filters Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                <!-- Issue Type Specific Filter -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Issue Type</label>
+                    <select name="issue_type" class="w-full text-xs rounded-md border-slate-300 focus:ring-sage-500 focus:border-sage-500" onchange="this.form.submit()">
+                        <option value="all" {% if current_issue_type == 'all' %}selected{% endif %}>All Issue Types ({{ total_count }})</option>
+                        {% for it in all_issue_types %}
+                        <option value="{{ it.type }}" {% if current_issue_type == it.type %}selected{% endif %}>
+                            {{ it.title }} ({{ it.count }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Category Filter -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Category</label>
+                    <select name="category" class="w-full text-xs rounded-md border-slate-300 focus:ring-sage-500 focus:border-sage-500" onchange="this.form.submit()">
+                        <option value="all" {% if current_category == 'all' %}selected{% endif %}>All Categories</option>
+                        <option value="technical" {% if current_category == 'technical' %}selected{% endif %}>Technical SEO</option>
+                        <option value="onpage" {% if current_category == 'onpage' %}selected{% endif %}>On-Page Elements</option>
+                        <option value="links" {% if current_category == 'links' %}selected{% endif %}>Internal Links</option>
+                        <option value="images" {% if current_category == 'images' %}selected{% endif %}>Images & Assets</option>
+                        <option value="performance" {% if current_category == 'performance' %}selected{% endif %}>Speed & Performance</option>
+                        <option value="mobile" {% if current_category == 'mobile' %}selected{% endif %}>Mobile Usability</option>
+                        <option value="structured_data" {% if current_category == 'structured_data' %}selected{% endif %}>Structured Data</option>
+                        <option value="security" {% if current_category == 'security' %}selected{% endif %}>Server & Security</option>
+                        <option value="keywords" {% if current_category == 'keywords' %}selected{% endif %}>Keywords</option>
+                        <option value="pagerank" {% if current_category == 'pagerank' %}selected{% endif %}>PageRank Equity</option>
+                        <option value="hreflang" {% if current_category == 'hreflang' %}selected{% endif %}>Hreflang Matrix</option>
+                    </select>
+                </div>
+
+                <!-- Severity Filter -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Severity</label>
+                    <select name="severity" class="w-full text-xs rounded-md border-slate-300 focus:ring-sage-500 focus:border-sage-500" onchange="this.form.submit()">
+                        <option value="all" {% if current_severity == 'all' %}selected{% endif %}>All Severities</option>
+                        <option value="critical" {% if current_severity == 'critical' %}selected{% endif %}>Critical Only</option>
+                        <option value="warning" {% if current_severity == 'warning' %}selected{% endif %}>Warnings Only</option>
+                        <option value="info" {% if current_severity == 'info' %}selected{% endif %}>Info Notices</option>
+                    </select>
+                </div>
+
+                <!-- Sort Order -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Sort By</label>
+                    <div class="flex items-center gap-2">
+                        <select name="sort" class="w-full text-xs rounded-md border-slate-300 focus:ring-sage-500 focus:border-sage-500" onchange="this.form.submit()">
+                            <option value="severity" {% if current_sort == 'severity' %}selected{% endif %}>Severity (High to Low)</option>
+                            <option value="type" {% if current_sort == 'type' %}selected{% endif %}>Issue Type</option>
+                            <option value="url" {% if current_sort == 'url' %}selected{% endif %}>Page URL</option>
+                        </select>
+                        <a href="/audit/{{ audit.id }}/issues" title="Reset all filters" class="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-md border border-[#E5E0D8]">
+                            Reset
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Active Filter Feedback -->
+    <div class="flex justify-between items-center text-xs text-slate-600 px-1 font-mono">
+        <div>
+            Showing <strong class="text-slate-900">{{ filtered_count }}</strong> of {{ total_count }} total issues
+            {% if current_issue_type != 'all' %}<span class="text-orange-600 font-bold ml-1">• Filtered by: {{ current_issue_type }}</span>{% endif %}
+            {% if search_query %}<span class="text-blue-600 font-bold ml-1">• Search: "{{ search_query }}"</span>{% endif %}
+        </div>
+    </div>
+
+    <!-- VIEW MODE 1: GROUPED BY ISSUE TYPE (DEFAULT) -->
+    {% if current_group_by == 'type' %}
+    <div class="space-y-4">
+        {% for group in grouped_issues %}
+        <div class="bg-white rounded-md border border-[#E5E0D8] shadow-xs overflow-hidden transition-all duration-200">
+            <!-- Group Header Card -->
+            <button type="button" onclick="toggleGroup('group-{{ loop.index }}')" class="w-full px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left hover:bg-[#F8F6F1] transition-colors border-l-4 {% if group.severity == 'critical' %}border-rose-500{% elif group.severity == 'warning' %}border-amber-500{% else %}border-blue-500{% endif %}">
+                <div class="flex items-start md:items-center gap-3 min-w-0">
+                    {% if group.severity == 'critical' %}
+                        <span class="shrink-0 px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-rose-100 text-rose-800 border border-rose-200">Critical</span>
+                    {% elif group.severity == 'warning' %}
+                        <span class="shrink-0 px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200">Warning</span>
+                    {% else %}
+                        <span class="shrink-0 px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">Info</span>
+                    {% endif %}
+
+                    <div class="min-w-0">
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <span>{{ group.title }}</span>
+                            <span class="text-xs font-normal text-slate-400 font-mono">({{ group.issue_type }})</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ group.sample_message }}</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
+                    <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-[#E5E0D8]">
+                        {{ group.issues|length }} Pages Affected
+                    </span>
+                    <svg id="chevron-group-{{ loop.index }}" class="w-5 h-5 text-slate-400 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </button>
+
+            <!-- Collapsible Body -->
+            <div id="group-{{ loop.index }}" class="{% if loop.index > 3 %}hidden{% endif %} border-t border-[#EDE9E1] bg-[#F8F6F1]/50 p-6 space-y-4">
+                <!-- Actionable Recommendation Box -->
+                {% if group.sample_recommendation %}
+                <div class="p-3.5 rounded-md bg-orange-50/70 border border-orange-200/80 text-xs text-orange-950 flex items-start gap-2.5">
+                    <svg class="w-4 h-4 text-orange-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <strong class="font-bold">Recommended Fix: </strong>
+                        <span>{{ group.sample_recommendation }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Full Width Table of Affected Pages -->
+                <div class="bg-white rounded-md border border-[#E5E0D8] overflow-x-auto shadow-2xs">
+                    <table class="w-full text-left text-xs divide-y divide-slate-200">
+                        <thead class="bg-[#F8F6F1] text-[11px] font-mono uppercase text-slate-500">
+                            <tr>
+                                <th class="px-4 py-3 font-semibold">Page URL (Full)</th>
+                                <th class="px-4 py-3 font-semibold">Element / Evidence</th>
+                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for issue in group.issues %}
+                            <tr class="hover:bg-[#F8F6F1]/80 transition-colors">
+                                <!-- Full URL column (Fully visible, break-all) -->
+                                <td class="px-4 py-3 align-top font-mono text-xs text-slate-800 break-all max-w-xl">
+                                    {% if issue.url %}
+                                        <div class="flex items-start gap-2">
+                                            <span class="select-all">{{ issue.url }}</span>
+                                            <button type="button" onclick="copyText('{{ issue.url }}', this)" title="Copy URL" class="shrink-0 p-1 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-slate-400 italic">Site-wide or Server Level Issue</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Specific Element / Evidence -->
+                                <td class="px-4 py-3 align-top text-slate-600 font-mono text-[11px] break-all">
+                                    {% if issue.element %}
+                                        <span class="px-2 py-1 rounded bg-slate-100 border border-[#E5E0D8] inline-block">{{ issue.element }}</span>
+                                    {% else %}
+                                        <span class="text-slate-400">—</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Direct Links & Analysis -->
+                                <td class="px-4 py-3 align-top text-right space-x-2 shrink-0 whitespace-nowrap">
+                                    {% if issue.page_id %}
+                                    <a href="/audit/{{ audit.id }}/page/{{ issue.page_id }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 hover:bg-orange-100 font-semibold font-mono text-[11px] transition-colors">
+                                        Page Analysis →
+                                    </a>
+                                    {% endif %}
+                                    {% if issue.url %}
+                                    <a href="{{ issue.url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold font-mono text-[11px] transition-colors">
+                                        Open ↗
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-md border border-[#E5E0D8] p-12 text-center text-slate-500">
+            <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <p class="text-base font-semibold text-slate-700">No issues matching the selected filters.</p>
+            <p class="text-xs text-slate-400 mt-1">Try clearing filters or searching for different keywords.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- VIEW MODE 2: FLAT TABLE VIEW -->
+    {% else %}
+    <div class="bg-white rounded-md border border-[#E5E0D8] shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs divide-y divide-slate-200">
+                <thead class="bg-[#F8F6F1] text-[11px] font-mono uppercase text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3.5 font-semibold">Severity</th>
+                        <th class="px-5 py-3.5 font-semibold">Category</th>
+                        <th class="px-5 py-3.5 font-semibold">Issue Type & Description</th>
+                        <th class="px-5 py-3.5 font-semibold">Page URL (Full)</th>
+                        <th class="px-5 py-3.5 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for issue in issues %}
+                    <tr class="hover:bg-[#F8F6F1]/80 transition-colors">
+                        <!-- Severity Badge -->
+                        <td class="px-5 py-4 whitespace-nowrap align-top">
+                            {% if issue.severity == 'critical' %}
+                                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-rose-100 text-rose-800 border border-rose-200">Critical</span>
+                            {% elif issue.severity == 'warning' %}
+                                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200">Warning</span>
+                            {% else %}
+                                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">Info</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Category -->
+                        <td class="px-5 py-4 whitespace-nowrap align-top text-slate-500 capitalize font-mono text-[11px]">
+                            {{ issue.category }}
+                        </td>
+
+                        <!-- Issue Type & Message -->
+                        <td class="px-5 py-4 align-top max-w-sm">
+                            <strong class="text-slate-900 font-bold block">{{ issue.issue_type|replace('_', ' ')|title }}</strong>
+                            <span class="text-slate-600 block mt-0.5">{{ issue.message }}</span>
+                            {% if issue.recommendation %}
+                            <span class="text-orange-700 text-[11px] block mt-1.5 font-medium bg-orange-50/70 p-1.5 rounded border border-orange-200/60">
+                                💡 {{ issue.recommendation }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Full Break-All URL -->
+                        <td class="px-5 py-4 align-top font-mono text-xs text-slate-800 break-all max-w-md">
+                            {% if issue.url %}
+                                <div class="flex items-start gap-2">
+                                    <span class="select-all">{{ issue.url }}</span>
+                                    <button type="button" onclick="copyText('{{ issue.url }}', this)" title="Copy URL" class="shrink-0 p-1 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    </button>
+                                </div>
+                            {% else %}
+                                <span class="text-slate-400 italic">Site-wide Issue</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-5 py-4 align-top text-right space-x-2 shrink-0 whitespace-nowrap">
+                            {% if issue.page_id %}
+                            <a href="/audit/{{ audit.id }}/page/{{ issue.page_id }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 hover:bg-orange-100 font-semibold font-mono text-[11px] transition-colors">
+                                Page Analysis →
+                            </a>
+                            {% endif %}
+                            {% if issue.url %}
+                            <a href="{{ issue.url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold font-mono text-[11px] transition-colors">
+                                Open ↗
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="px-6 py-12 text-center text-slate-500 font-medium">No issues found matching the selected filters.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setGroupBy(mode) {
+    document.getElementById('input-group-by').value = mode;
+    document.getElementById('issues-filter-form').submit();
+}
+
+function toggleGroup(groupId) {
+    const el = document.getElementById(groupId);
+    const chevron = document.getElementById('chevron-' + groupId);
+    if (el) {
+        el.classList.toggle('hidden');
+        if (chevron) {
+            chevron.classList.toggle('rotate-180');
+        }
+    }
+}
+
+function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="text-[10px] text-emerald-600 font-bold font-mono">✓</span>';
+        setTimeout(() => {
+            btn.innerHTML = origHTML;
+        }, 1500);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1045 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full space-y-6 pb-20">
+
+    <!-- Top Navigation Bar & Action Buttons -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <a href="/audit/{{ audit.id }}/pages" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#52796F] transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            <span>Back to All URLs / URL Explorer</span>
+        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-white border border-[#E5E0D8] hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors shadow-2xs">
+                <span>Open Live Page</span>
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            </a>
+            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#52796F] hover:bg-[#3D5A50] text-white font-semibold text-xs transition-colors shadow-2xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Export URL Dataset</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Jump Sticky Navigation Bar -->
+    <div class="sticky top-2 z-30 bg-white/95 backdrop-blur-md rounded-lg border border-[#E5E0D8] p-2 shadow-2xs overflow-x-auto flex items-center gap-1 font-mono text-xs">
+        <a href="#section-header" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">1. Header</a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-onpage" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">2. On-Page</a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-links" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">
+            3. Links <span class="text-[#52796F] font-bold">({{ links_data.inlinks_count + links_data.outlinks_internal_count + links_data.outlinks_external_count }})</span>
+        </a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-media" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">
+            4. Media <span class="text-[#52796F] font-bold">({{ media_data.image_count }})</span>
+        </a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-technical" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">5. Technical</a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-performance" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">6. Performance</a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-technology" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">7. Technology</a>
+        <span class="text-slate-300">/</span>
+        <a href="#section-issues" class="px-3 py-1.5 rounded-md hover:bg-[#F8F6F1] text-slate-700 font-medium whitespace-nowrap transition-colors">
+            8. Issues {% if issues|length > 0 %}<span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold ml-1">{{ issues|length }}</span>{% else %}<span class="text-emerald-700 font-bold ml-1">0</span>{% endif %}
+        </a>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 1: HEADER                                                         -->
+    <!-- ========================================================================= -->
+    {% set sc = page.status_code or 0 %}
+    <section id="section-header" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#EDE9E1]">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-1 text-xs font-mono font-bold rounded-md {% if sc == 200 %}bg-emerald-50 text-emerald-800 border border-emerald-200{% elif sc >= 300 and sc < 400 %}bg-amber-50 text-amber-800 border border-amber-200{% elif sc >= 400 and sc < 500 %}bg-rose-50 text-rose-800 border border-rose-200{% else %}bg-purple-50 text-purple-800 border border-purple-200{% endif %}">
+                    HTTP {{ sc }} - {{ page.status }}
+                </span>
+                <span class="px-2.5 py-1 text-xs font-mono font-semibold rounded-md {% if page.indexability == 'Indexable' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% elif 'Noindex' in page.indexability %}bg-rose-50 text-rose-800 border border-rose-200{% elif 'Canonicalized' in page.indexability %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-slate-100 text-slate-700 border border-slate-200{% endif %}">
+                    {{ page.indexability }}
+                </span>
+                <span class="px-2.5 py-1 text-xs font-mono font-semibold rounded-md bg-stone-100 text-stone-800 border border-stone-200">
+                    Page Type: {{ page.page_type }}
+                </span>
+                <span class="px-2.5 py-1 text-xs font-mono text-slate-600 bg-slate-50 rounded-md border border-slate-200">
+                    Crawl Depth: {{ page.crawl_depth }}
+                </span>
+                <span class="px-2.5 py-1 text-xs font-mono text-slate-600 bg-slate-50 rounded-md border border-slate-200">
+                    Response: {{ "%.0f"|format(page.response_time_ms or 0) }} ms
+                </span>
+            </div>
+
+            <div class="shrink-0">
+                <span class="px-3 py-1 rounded-md font-mono text-xs font-bold {% if issues|length > 0 %}bg-rose-50 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200{% endif %}">
+                    {{ issues|length }} Issues Detected
+                </span>
+            </div>
+        </div>
+
+        <!-- URL Title Bar -->
+        <div class="space-y-1">
+            <div class="flex items-center gap-2">
+                <h1 class="text-base sm:text-lg font-bold font-mono text-slate-900 break-all select-all">{{ page.url }}</h1>
+                <button type="button" onclick="copyText('{{ page.url }}', this)" title="Copy URL" class="p-1 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors cursor-pointer shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 font-mono">Parent / Discovered From: <span class="text-slate-800">{{ page.parent_url or 'Seed URL / Direct Entry' }}</span></p>
+        </div>
+
+        <!-- Header 7-Attribute Quick KPI Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 pt-3 border-t border-[#EDE9E1] font-mono text-xs">
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">1. Status</span>
+                <strong class="text-slate-900">{{ sc }} {{ page.status }}</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">2. Indexability</span>
+                <strong class="text-slate-900">{{ page.indexability }}</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">3. Canonical Match</span>
+                <strong class="text-slate-900">{% if tech_data.canonical_match %}Self (Match){% elif page.canonical_url %}Canonicalized{% else %}Missing{% endif %}</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">4. Page Type</span>
+                <strong class="text-[#52796F]">{{ page.page_type }}</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">5. Crawl Depth</span>
+                <strong class="text-slate-900">Depth {{ page.crawl_depth }}</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">6. Response Time</span>
+                <strong class="text-slate-900">{{ "%.0f"|format(page.response_time_ms or 0) }} ms</strong>
+            </div>
+            <div class="p-2.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/70">
+                <span class="block text-[10px] text-slate-400 uppercase font-bold">7. Word Count</span>
+                <strong class="text-slate-900">{{ onpage.word_count }} words</strong>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 2: ON-PAGE SEO                                                    -->
+    <!-- ========================================================================= -->
+    <section id="section-onpage" class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    On-Page SEO Profile
+                </h2>
+                <p class="text-xs text-slate-500">Metadata, heading hierarchy, content analysis, and linguistic attributes.</p>
+            </div>
+            <span class="font-mono text-xs px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                Language: <strong class="uppercase text-slate-900">{{ onpage.language }}</strong>
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Metadata Analysis Card -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+                <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono pb-2 border-b border-[#EDE9E1]">
+                    Metadata & Core Tags
+                </h3>
+
+                <!-- Title Tag -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-700">Title Tag</span>
+                        <span class="font-mono text-slate-500">{{ onpage.title_length }} / 60 chars</span>
+                    </div>
+                    <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] text-xs font-medium text-slate-900 leading-relaxed break-words select-all">
+                        {{ onpage.title or '<Missing Title Tag>' }}
+                    </div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div class="h-1.5 rounded-full {% if onpage.title_length > 60 %}bg-rose-500{% elif onpage.title_length < 30 and onpage.title_length > 0 %}bg-amber-500{% elif onpage.title_length == 0 %}bg-rose-500{% else %}bg-emerald-500{% endif %}" style="width: min(100%, {{ (onpage.title_length / 60) * 100 }}%)"></div>
+                    </div>
+                </div>
+
+                <!-- Meta Description -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-700">Meta Description</span>
+                        <span class="font-mono text-slate-500">{{ onpage.description_length }} / 160 chars</span>
+                    </div>
+                    <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] text-xs text-slate-800 leading-relaxed break-words select-all">
+                        {{ onpage.meta_description or '<Missing Meta Description>' }}
+                    </div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div class="h-1.5 rounded-full {% if onpage.description_length > 160 %}bg-rose-500{% elif onpage.description_length < 120 and onpage.description_length > 0 %}bg-amber-500{% elif onpage.description_length == 0 %}bg-rose-500{% else %}bg-emerald-500{% endif %}" style="width: min(100%, {{ (onpage.description_length / 160) * 100 }}%)"></div>
+                    </div>
+                </div>
+
+                <!-- Main H1 Tag -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-700">Primary H1 Heading</span>
+                        <span class="font-mono text-slate-500">{% if onpage.h1 %}1 detected{% else %}<span class="text-rose-600 font-bold">Missing</span>{% endif %}</span>
+                    </div>
+                    <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] text-xs font-bold text-slate-900 leading-relaxed break-words">
+                        {{ onpage.h1 or '<Missing H1 Tag on this Page>' }}
+                    </div>
+                </div>
+
+                <!-- Quick Copy Content Excerpt (Main Content) -->
+                <div class="space-y-1.5 pt-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-700">Main Content Excerpt / Preview</span>
+                        <span class="font-mono text-slate-500">{{ onpage.word_count }} total words</span>
+                    </div>
+                    <div class="p-3 bg-slate-900 text-slate-200 rounded-md text-[11px] font-mono leading-relaxed max-h-40 overflow-y-auto whitespace-pre-line border border-slate-800">
+                        {{ onpage.main_content or 'No text body detected.' }}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Headings Hierarchy Card (H2s & H3s lists) -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs flex flex-col space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-[#EDE9E1]">
+                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                        Headings Breakdown (H2s & H3s)
+                    </h3>
+                    <div class="flex items-center gap-1.5 text-xs font-mono">
+                        <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">{{ onpage.h2_list|length }} H2</span>
+                        <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-bold">{{ onpage.h3_list|length }} H3</span>
+                    </div>
+                </div>
+
+                <!-- Headings Selector Tabs -->
+                <div class="flex border-b border-slate-200 text-xs font-medium">
+                    <button type="button" onclick="switchTab('tab-headings', 'h2-list', this)" class="heading-tab-btn px-3 py-1.5 border-b-2 border-[#52796F] text-[#52796F] font-bold">H2 Headings ({{ onpage.h2_list|length }})</button>
+                    <button type="button" onclick="switchTab('tab-headings', 'h3-list', this)" class="heading-tab-btn px-3 py-1.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">H3 Headings ({{ onpage.h3_list|length }})</button>
+                    <button type="button" onclick="switchTab('tab-headings', 'tree-list', this)" class="heading-tab-btn px-3 py-1.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800">Full Tree ({{ onpage.all_headings|length }})</button>
+                </div>
+
+                <!-- H2 Tab Content -->
+                <div id="tab-headings-h2-list" class="tab-headings-panel flex-1 overflow-y-auto max-h-80 space-y-2 pr-1">
+                    {% for h2 in onpage.h2_list %}
+                        <div class="p-2.5 bg-[#F8F6F1] rounded border border-[#EDE9E1] text-xs font-mono flex items-start gap-2">
+                            <span class="px-1.5 py-0.5 rounded bg-[#52796F] text-white font-bold text-[10px] shrink-0">H2</span>
+                            <span class="text-slate-800 leading-relaxed">{{ h2 }}</span>
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic py-8 text-center">No H2 headings detected on this URL.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- H3 Tab Content -->
+                <div id="tab-headings-h3-list" class="tab-headings-panel hidden flex-1 overflow-y-auto max-h-80 space-y-2 pr-1">
+                    {% for h3 in onpage.h3_list %}
+                        <div class="p-2.5 bg-[#F8F6F1] rounded border border-[#EDE9E1] text-xs font-mono flex items-start gap-2">
+                            <span class="px-1.5 py-0.5 rounded bg-blue-600 text-white font-bold text-[10px] shrink-0">H3</span>
+                            <span class="text-slate-800 leading-relaxed">{{ h3 }}</span>
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic py-8 text-center">No H3 headings detected on this URL.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Full Tree Tab Content -->
+                <div id="tab-headings-tree-list" class="tab-headings-panel hidden flex-1 overflow-y-auto max-h-80 space-y-1.5 pr-1 font-mono text-xs">
+                    {% for h in onpage.all_headings %}
+                        <div class="p-2 bg-[#F8F6F1]/80 rounded border border-[#EDE9E1] flex items-start gap-2" style="margin-left: {{ ((h.tag[1]|int - 1) * 0.75)|round(2) }}rem;">
+                            <span class="px-1.5 py-0.5 rounded font-bold text-[10px] shrink-0 {% if h.tag == 'h1' %}bg-slate-900 text-white{% elif h.tag == 'h2' %}bg-[#52796F] text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                                {{ h.tag|upper }}
+                            </span>
+                            <span class="text-slate-800 break-words leading-relaxed">{{ h.text }}</span>
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic py-8 text-center">No heading elements found on this URL.</p>
+                    {% endfor %}
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 3: LINKS PROFILE                                                  -->
+    <!-- ========================================================================= -->
+    <section id="section-links" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDE9E1]">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    Links Profile & Architecture
+                </h2>
+                <p class="text-xs text-slate-500">Internal inlinks, outlinks, external references, broken links, and redirect chains.</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    Inlinks: <strong class="text-slate-900">{{ links_data.inlinks_count }}</strong>
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    Outlinks: <strong class="text-slate-900">{{ links_data.outlinks_internal_count }}</strong>
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    External: <strong class="text-slate-900">{{ links_data.outlinks_external_count }}</strong>
+                </span>
+                {% if links_data.broken_links_count > 0 %}
+                <span class="px-2.5 py-1 rounded bg-rose-50 text-rose-800 border border-rose-200 font-bold">
+                    Broken: {{ links_data.broken_links_count }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Links Sub-Tabs -->
+        <div class="flex border-b border-slate-200 text-xs font-medium overflow-x-auto">
+            <button type="button" onclick="switchTab('tab-links', 'inlinks', this)" class="links-tab-btn px-4 py-2 border-b-2 border-[#52796F] text-[#52796F] font-bold whitespace-nowrap">
+                Internal Inlinks ({{ links_data.inlinks_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-links', 'outlinks', this)" class="links-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Internal Outlinks ({{ links_data.outlinks_internal_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-links', 'external', this)" class="links-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                External Outlinks ({{ links_data.outlinks_external_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-links', 'broken', this)" class="links-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Broken Links ({{ links_data.broken_links_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-links', 'redirects', this)" class="links-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Redirecting Links ({{ links_data.redirect_links_count }})
+            </button>
+        </div>
+
+        <!-- Tab 1: Inlinks Table -->
+        <div id="tab-links-inlinks" class="tab-links-panel overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Source Page URL</th>
+                        <th class="py-2.5 px-3">Anchor Text</th>
+                        <th class="py-2.5 px-3">Follow / Nofollow</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for l in links_data.inlinks %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">{{ l.source_url }}</td>
+                            <td class="py-2 px-3 text-slate-700 font-sans font-medium">{{ l.anchor_text or '—' }}</td>
+                            <td class="py-2 px-3">
+                                {% if l.nofollow %}
+                                    <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px]">nofollow</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px]">follow</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-slate-400 italic">No inbound links recorded for this URL.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 2: Outlinks Internal Table -->
+        <div id="tab-links-outlinks" class="tab-links-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Target URL</th>
+                        <th class="py-2.5 px-3">Anchor Text</th>
+                        <th class="py-2.5 px-3">Status</th>
+                        <th class="py-2.5 px-3">Directive</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for l in links_data.outlinks_internal %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">{{ l.target_url }}</td>
+                            <td class="py-2 px-3 text-slate-700 font-sans font-medium">{{ l.anchor_text or '—' }}</td>
+                            <td class="py-2 px-3">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if l.status_code == 200 %}bg-emerald-50 text-emerald-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+                                    {{ l.status_code or 200 }}
+                                </span>
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if l.nofollow %}
+                                    <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px]">nofollow</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[10px]">follow</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="py-6 text-center text-slate-400 italic">No internal outlinks found on this page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 3: External Links Table -->
+        <div id="tab-links-external" class="tab-links-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">External Destination</th>
+                        <th class="py-2.5 px-3">Anchor Text</th>
+                        <th class="py-2.5 px-3">Rel Attributes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for l in links_data.outlinks_external %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">{{ l.target_url }}</td>
+                            <td class="py-2 px-3 text-slate-700 font-sans font-medium">{{ l.anchor_text or '—' }}</td>
+                            <td class="py-2 px-3 text-slate-500">{{ l.rel_attributes or ('nofollow' if l.nofollow else 'follow') }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-slate-400 italic">No external outbound links found on this page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 4: Broken Links Table -->
+        <div id="tab-links-broken" class="tab-links-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Broken Target URL</th>
+                        <th class="py-2.5 px-3">Status Code</th>
+                        <th class="py-2.5 px-3">Anchor Text</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for l in links_data.broken_links %}
+                        <tr class="hover:bg-rose-50/50">
+                            <td class="py-2 px-3 text-rose-800 break-all font-bold select-all">{{ l.target_url }}</td>
+                            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">HTTP {{ l.status_code or 404 }}</span></td>
+                            <td class="py-2 px-3 text-slate-700 font-sans">{{ l.anchor_text or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-emerald-700 font-semibold">✓ No broken links detected originating from this page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 5: Redirecting Links Table -->
+        <div id="tab-links-redirects" class="tab-links-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Redirecting URL</th>
+                        <th class="py-2.5 px-3">Status Code</th>
+                        <th class="py-2.5 px-3">Anchor Text</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for l in links_data.redirect_links %}
+                        <tr class="hover:bg-amber-50/50">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">{{ l.target_url }}</td>
+                            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">{{ l.status_code }}</span></td>
+                            <td class="py-2 px-3 text-slate-700 font-sans">{{ l.anchor_text or '—' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-slate-400 italic">No redirecting links originating from this page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 4: MEDIA & IMAGES                                                 -->
+    <!-- ========================================================================= -->
+    <section id="section-media" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDE9E1]">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    Media & Image Assets
+                </h2>
+                <p class="text-xs text-slate-500">Image counts, ALT attributes, dimensions, large file warnings, and lazy loading performance.</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    Total Images: <strong class="text-slate-900">{{ media_data.image_count }}</strong>
+                </span>
+                <span class="px-2.5 py-1 rounded {% if media_data.missing_alt_count > 0 %}bg-rose-50 text-rose-800 border border-rose-200 font-bold{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200{% endif %}">
+                    Missing ALT: {{ media_data.missing_alt_count }}
+                </span>
+                <span class="px-2.5 py-1 rounded {% if media_data.large_images_count > 0 %}bg-amber-50 text-amber-800 border border-amber-200 font-bold{% else %}bg-[#F8F6F1] text-slate-700 border border-[#E5E0D8]{% endif %}">
+                    Large Images: {{ media_data.large_images_count }}
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    Lazy Loaded: <strong class="text-slate-900">{{ media_data.lazy_count }} ({{ media_data.lazy_pct }}%)</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- Media Sub-Tabs -->
+        <div class="flex border-b border-slate-200 text-xs font-medium overflow-x-auto">
+            <button type="button" onclick="switchTab('tab-media', 'all-images', this)" class="media-tab-btn px-4 py-2 border-b-2 border-[#52796F] text-[#52796F] font-bold whitespace-nowrap">
+                All Images ({{ media_data.image_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-media', 'missing-alt', this)" class="media-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Missing ALT ({{ media_data.missing_alt_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-media', 'large-images', this)" class="media-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Large Images (>1200px / >100KB) ({{ media_data.large_images_count }})
+            </button>
+            <button type="button" onclick="switchTab('tab-media', 'broken-images', this)" class="media-tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                Broken Images ({{ media_data.broken_images_count }})
+            </button>
+        </div>
+
+        <!-- Tab 1: All Images Table -->
+        <div id="tab-media-all-images" class="tab-media-panel overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Image Source (Src)</th>
+                        <th class="py-2.5 px-3">Alt Text</th>
+                        <th class="py-2.5 px-3">Dimensions</th>
+                        <th class="py-2.5 px-3">Lazy Loading</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for img in media_data.images %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">
+                                <a href="{{ img.src }}" target="_blank" rel="noopener noreferrer" class="hover:underline text-[#52796F]">{{ img.src }}</a>
+                            </td>
+                            <td class="py-2 px-3 font-sans">
+                                {% if img.alt_text %}
+                                    <span class="text-slate-800">{{ img.alt_text }}</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200 font-bold text-[10px]">Missing ALT</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3 text-slate-600">
+                                {% if img.width and img.height %}
+                                    {{ img.width }} × {{ img.height }} px
+                                {% elif img.width %}
+                                    w: {{ img.width }}px
+                                {% else %}
+                                    <span class="text-amber-700">No dimensions</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2 px-3">
+                                {% if img.is_lazy_loaded %}
+                                    <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px]">Lazy (OK)</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px]">Eager</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="py-6 text-center text-slate-400 italic">No image assets discovered on this page.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 2: Missing ALT Table -->
+        <div id="tab-media-missing-alt" class="tab-media-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Image URL</th>
+                        <th class="py-2.5 px-3">Dimensions</th>
+                        <th class="py-2.5 px-3">SEO Impact</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for img in media_data.missing_alt %}
+                        <tr class="hover:bg-rose-50/40">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all font-mono">{{ img.src }}</td>
+                            <td class="py-2 px-3 text-slate-600">{{ img.width or '—' }}x{{ img.height or '—' }}</td>
+                            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px]">High (Missing ALT)</span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-emerald-700 font-semibold">✓ Perfect! All images on this page contain descriptive ALT attributes.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 3: Large Images Table -->
+        <div id="tab-media-large-images" class="tab-media-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Image URL</th>
+                        <th class="py-2.5 px-3">Dimensions (W × H)</th>
+                        <th class="py-2.5 px-3">File Size</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for img in media_data.large_images %}
+                        <tr class="hover:bg-amber-50/40">
+                            <td class="py-2 px-3 text-slate-800 break-all select-all">{{ img.src }}</td>
+                            <td class="py-2 px-3 text-amber-800 font-bold">{{ img.width or '—' }} × {{ img.height or '—' }} px</td>
+                            <td class="py-2 px-3 text-slate-600">{% if img.file_size %}{{ (img.file_size // 1024) }} KB{% else %}>1200px Width{% endif %}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-emerald-700 font-semibold">✓ No oversized images detected on this URL.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 4: Broken Images Table -->
+        <div id="tab-media-broken-images" class="tab-media-panel hidden overflow-x-auto max-h-80">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-[#F8F6F1] font-mono text-[11px] text-slate-600 uppercase border-b border-[#E5E0D8] sticky top-0">
+                    <tr>
+                        <th class="py-2.5 px-3">Broken Image Source</th>
+                        <th class="py-2.5 px-3">Issue Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EDE9E1] font-mono">
+                    {% for img in media_data.broken_images %}
+                        <tr class="hover:bg-rose-50/40">
+                            <td class="py-2 px-3 text-rose-800 break-all select-all font-bold">{{ img.src }}</td>
+                            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px]">Image 404 Not Found</span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="2" class="py-6 text-center text-emerald-700 font-semibold">✓ No broken image URLs detected.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 5: TECHNICAL SEO                                                  -->
+    <!-- ========================================================================= -->
+    <section id="section-technical" class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    Technical SEO Profile
+                </h2>
+                <p class="text-xs text-slate-500">Canonical integrity, robots directives, hreflang annotations, schema structured data, sitemaps, and HTTP response headers.</p>
+            </div>
+            <span class="font-mono text-xs px-2.5 py-1 rounded bg-white border border-[#E5E0D8] text-slate-700">
+                Sitemap: <strong class="text-slate-900">{{ tech_data.sitemap_presence }}</strong>
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Directives, Canonical & Sitemaps Card -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+                <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono pb-2 border-b border-[#EDE9E1]">
+                    Directives & Canonical Integrity
+                </h3>
+
+                <!-- Canonical Tag Spec -->
+                <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-1.5 font-mono text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-900 uppercase text-[10px]">Canonical Tag</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if tech_data.canonical_match %}bg-emerald-50 text-emerald-800 border border-emerald-200{% elif tech_data.canonical %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-rose-50 text-rose-800 border border-rose-200{% endif %}">
+                            {{ tech_data.canonical_status }}
+                        </span>
+                    </div>
+                    <p class="text-slate-800 break-all select-all font-mono">{{ tech_data.canonical or 'None Specified in HTML' }}</p>
+                </div>
+
+                <!-- Robots Meta Directive -->
+                <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-1.5 font-mono text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-900 uppercase text-[10px]">Robots Directive</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if 'noindex' in tech_data.robots %}bg-rose-50 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200{% endif %}">
+                            {{ tech_data.robots_txt_status }}
+                        </span>
+                    </div>
+                    <p class="text-slate-800 font-bold">{{ tech_data.robots }}</p>
+                </div>
+
+                <!-- XML Sitemap Status -->
+                <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-1.5 font-mono text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-900 uppercase text-[10px]">XML Sitemap Status</span>
+                        <a href="{{ tech_data.sitemap_url }}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#52796F] hover:underline font-bold">View Sitemap.xml ↗</a>
+                    </div>
+                    <p class="text-slate-800">{{ tech_data.sitemap_presence }}</p>
+                </div>
+
+                <!-- Hreflang Tags Table -->
+                <div class="space-y-1.5 pt-2">
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="font-semibold text-slate-700">Hreflang Annotations</span>
+                        <span class="text-slate-500">{{ tech_data.hreflang_count }} Tags</span>
+                    </div>
+                    <div class="p-3 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] text-xs font-mono max-h-36 overflow-y-auto">
+                        {% for hf in tech_data.hreflang %}
+                            <div class="py-1 border-b border-[#EDE9E1] flex items-center justify-between gap-2">
+                                <span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-bold uppercase text-[10px]">{{ hf.lang_code }}</span>
+                                <span class="text-slate-700 truncate select-all">{{ hf.target_url }}</span>
+                            </div>
+                        {% else %}
+                            <p class="text-slate-400 italic text-center py-2">No hreflang tags found for this page.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Structured Data (Schema.org JSON-LD) Card -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs flex flex-col space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-[#EDE9E1]">
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                            Structured Data (Schema.org JSON-LD)
+                        </h3>
+                        <p class="text-[11px] text-slate-500">Entities and semantic metadata detected.</p>
+                    </div>
+                    <span class="font-mono text-xs px-2 py-0.5 rounded bg-[#52796F]/10 text-[#3D5A50] font-bold border border-[#52796F]/20">
+                        {{ tech_data.schema_count }} Entities
+                    </span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto max-h-96 space-y-3">
+                    {% for sd in tech_data.schema %}
+                        <div class="p-3.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono text-xs font-bold text-slate-900 px-2 py-0.5 rounded bg-white border border-slate-200">
+                                    @type: {{ sd.schema_type }}
+                                </span>
+                                <span class="text-[11px] font-mono text-emerald-700 font-bold">✓ Valid JSON-LD</span>
+                            </div>
+                            <pre class="p-3 bg-slate-900 text-slate-100 rounded text-[11px] font-mono overflow-x-auto max-h-40 leading-relaxed">{{ sd.data_json }}</pre>
+                        </div>
+                    {% else %}
+                        <div class="py-12 text-center text-slate-400 italic">
+                            <p class="text-xs">No Schema.org structured data (JSON-LD or Microdata) detected on this URL.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- HTTP Response Headers Full Table Card -->
+        <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-[#EDE9E1]">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                        HTTP Response Headers
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Live response headers returned during crawl handshake.</p>
+                </div>
+                <button type="button" onclick="copyText(document.getElementById('http-headers-code').innerText, this)" class="px-2.5 py-1 text-xs font-mono font-medium rounded bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
+                    Copy Headers
+                </button>
+            </div>
+
+            <div class="overflow-x-auto max-h-64 rounded-md border border-[#EDE9E1]">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="bg-[#F8F6F1] text-[10px] text-slate-500 uppercase border-b border-[#E5E0D8] sticky top-0">
+                        <tr>
+                            <th class="py-2 px-3 w-1/3">Header Name</th>
+                            <th class="py-2 px-3">Header Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="http-headers-code" class="divide-y divide-[#EDE9E1]">
+                        {% for k, v in tech_data.http_headers.items() %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-1.5 px-3 font-semibold text-slate-900 break-words">{{ k }}</td>
+                                <td class="py-1.5 px-3 text-slate-700 break-all select-all">{{ v }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 6: PERFORMANCE & CORE WEB VITALS                                  -->
+    <!-- ========================================================================= -->
+    <section id="section-performance" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDE9E1]">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    Performance & Core Web Vitals (CWV)
+                </h2>
+                <p class="text-xs text-slate-500">Synthetic field calculations for LCP, INP, CLS, FCP, TTFB, and resource payload weights.</p>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-xs">
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    Requests: <strong class="text-slate-900">{{ perf_data.requests_count }}</strong>
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#F8F6F1] border border-[#E5E0D8] text-slate-700">
+                    HTML Size: <strong class="text-slate-900">{{ perf_data.page_size_kb }} KB</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- CWV 5-Metric Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 font-mono text-xs">
+            
+            <!-- LCP Card -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">LCP</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if perf_data.lcp_status == 'good' %}bg-emerald-100 text-emerald-800{% elif perf_data.lcp_status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                        {{ perf_data.lcp_status|upper }}
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-slate-900">{{ perf_data.lcp }}</div>
+                <p class="text-[11px] font-sans text-slate-600">Largest Contentful Paint (Goal &le; 2.5s)</p>
+            </div>
+
+            <!-- INP Card -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">INP</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if perf_data.inp_status == 'good' %}bg-emerald-100 text-emerald-800{% elif perf_data.inp_status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                        {{ perf_data.inp_status|upper }}
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-slate-900">{{ perf_data.inp }}</div>
+                <p class="text-[11px] font-sans text-slate-600">Interaction to Next Paint (Goal &le; 200ms)</p>
+            </div>
+
+            <!-- CLS Card -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">CLS</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if perf_data.cls_status == 'good' %}bg-emerald-100 text-emerald-800{% elif perf_data.cls_status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                        {{ perf_data.cls_status|upper }}
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-slate-900">{{ perf_data.cls }}</div>
+                <p class="text-[11px] font-sans text-slate-600">Cumulative Layout Shift (Goal &le; 0.1)</p>
+            </div>
+
+            <!-- FCP Card -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">FCP</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if perf_data.fcp_status == 'good' %}bg-emerald-100 text-emerald-800{% elif perf_data.fcp_status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                        {{ perf_data.fcp_status|upper }}
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-slate-900">{{ perf_data.fcp }}</div>
+                <p class="text-[11px] font-sans text-slate-600">First Contentful Paint (Goal &le; 1.8s)</p>
+            </div>
+
+            <!-- TTFB Card -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-500">TTFB</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if perf_data.ttfb_status == 'good' %}bg-emerald-100 text-emerald-800{% elif perf_data.ttfb_status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                        {{ perf_data.ttfb_status|upper }}
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-slate-900">{{ perf_data.ttfb }}</div>
+                <p class="text-[11px] font-sans text-slate-600">Time to First Byte (Goal &le; 800ms)</p>
+            </div>
+
+        </div>
+
+        <!-- Payload & Requests Breakdown Card -->
+        <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+            <div>
+                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Raw HTML Document Size</span>
+                <strong class="text-slate-900 text-sm">{{ perf_data.page_size_bytes }} bytes ({{ perf_data.page_size_kb }} KB)</strong>
+            </div>
+            <div>
+                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Total Sub-Resource Requests</span>
+                <strong class="text-slate-900 text-sm">{{ perf_data.requests_count }} HTTP Requests</strong>
+            </div>
+            <div>
+                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Images Loaded on Page</span>
+                <strong class="text-slate-900 text-sm">{{ media_data.image_count }} Assets ({{ media_data.lazy_count }} lazy)</strong>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 7: TECHNOLOGY STACK                                               -->
+    <!-- ========================================================================= -->
+    <section id="section-technology" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="pb-3 border-b border-[#EDE9E1]">
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                Technology Stack Detected
+            </h2>
+            <p class="text-xs text-slate-500">Heuristic signature detection for CMS, web frameworks, hosting servers, CDNs, analytics, and marketing trackers.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
+            
+            <!-- CMS -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">1. Content Management System (CMS)</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.cms %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Frameworks -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">2. Frameworks & Libraries</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.framework %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Web Server -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">3. Web Server</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.server %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- CDN -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">4. Content Delivery Network (CDN)</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.cdn %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Analytics -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">5. Analytics Engines</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.analytics %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Marketing Trackers & Tag Managers -->
+            <div class="p-4 bg-[#F8F6F1] rounded-md border border-[#E5E0D8] space-y-2">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">6. Marketing Trackers & Pixels</span>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for item in tech_stack.trackers %}
+                        <span class="px-2.5 py-1 rounded-md bg-white border border-[#E5E0D8] font-bold text-slate-900">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 8: ISSUES DETECTED ON THIS URL                                    -->
+    <!-- ========================================================================= -->
+    <section id="section-issues" class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EDE9E1]">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#52796F]"></span>
+                    Issues Affecting This URL
+                </h2>
+                <p class="text-xs text-slate-500">Specific diagnostic issues, affected code snippets, and remediation steps.</p>
+            </div>
+            
+            <div class="flex items-center gap-2 font-mono text-xs">
+                <span class="px-2.5 py-1 rounded {% if critical_issues|length > 0 %}bg-rose-100 text-rose-800 border border-rose-200 font-bold{% else %}bg-slate-100 text-slate-600{% endif %}">
+                    Critical: {{ critical_issues|length }}
+                </span>
+                <span class="px-2.5 py-1 rounded {% if warning_issues|length > 0 %}bg-amber-100 text-amber-800 border border-amber-200 font-bold{% else %}bg-slate-100 text-slate-600{% endif %}">
+                    Warnings: {{ warning_issues|length }}
+                </span>
+                <span class="px-2.5 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                    Info: {{ info_issues|length }}
+                </span>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            {% for issue in issues %}
+                {% set sev = (issue.severity or 'info')|lower %}
+                {% set sevBadge = 'bg-rose-100 text-rose-800 border-rose-200' if sev == 'critical' else ('bg-amber-100 text-amber-800 border-amber-200' if sev in ('warning', 'high') else 'bg-blue-50 text-blue-800 border-blue-200') %}
+                <div class="p-4 bg-[#F8F6F1]/80 rounded-md border border-[#E5E0D8] space-y-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border {{ sevBadge }}">{{ sev }}</span>
+                            <strong class="text-xs font-bold text-slate-900 capitalize">{{ (issue.issue_type or '').replace('_', ' ') }}</strong>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-500 uppercase px-2 py-0.5 rounded bg-white border border-[#E5E0D8]">Category: {{ issue.category }}</span>
+                    </div>
+
+                    <p class="text-xs text-slate-800 leading-relaxed font-sans">{{ issue.message }}</p>
+
+                    {% if issue.element %}
+                    <div class="p-2.5 bg-white rounded border border-slate-200 text-[11px] font-mono text-slate-700 break-all select-all">
+                        <strong class="text-slate-900">Affected Element / Data:</strong> {{ issue.element }}
+                    </div>
+                    {% endif %}
+
+                    {% if issue.recommendation %}
+                    <div class="p-3 bg-[#52796F]/10 border border-[#52796F]/25 rounded-md text-xs text-[#2F3E46] leading-relaxed">
+                        <strong class="font-bold text-[#1E293B]">💡 Actionable Recommendation:</strong> {{ issue.recommendation }}
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="py-12 text-center text-slate-500 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]">
+                    <p class="text-sm font-bold text-emerald-700">✓ Excellent! No SEO issues or warnings were flagged on this page.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyText(text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="text-[10px] text-emerald-600 font-bold font-mono">✓ Copied</span>';
+        setTimeout(() => {
+            btn.innerHTML = origHTML;
+        }, 1500);
+    });
+}
+
+function switchTab(groupPrefix, targetId, activeBtn) {
+    // Hide all panels in group
+    document.querySelectorAll('.' + groupPrefix + '-panel').forEach(el => el.classList.add('hidden'));
+    // Show active panel
+    const activePanel = document.getElementById(groupPrefix + '-' + targetId);
+    if (activePanel) activePanel.classList.remove('hidden');
+
+    // Update tab button styles
+    const tabClass = groupPrefix.replace('tab-', '') + '-tab-btn';
+    document.querySelectorAll('.' + tabClass).forEach(btn => {
+        btn.classList.remove('border-[#52796F]', 'text-[#52796F]', 'font-bold');
+        btn.classList.add('border-transparent', 'text-slate-500');
+    });
+
+    if (activeBtn) {
+        activeBtn.classList.remove('border-transparent', 'text-slate-500');
+        activeBtn.classList.add('border-[#52796F]', 'text-[#52796F]', 'font-bold');
+    }
+}
+</script>
+{% endblock %}

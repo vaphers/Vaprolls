@@ -1,0 +1,126 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h3 class="text-2xl font-bold text-gray-800">Audit Comparison & Migration Diff</h3>
+        <p class="text-gray-500">Compare this audit against a baseline run (e.g. Pre-Migration vs Post-Migration or Staging vs Production).</p>
+    </div>
+
+    <!-- Select audit to compare with -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <form method="GET" action="/audit/{{ audit.id }}/compare" class="flex items-center space-x-4">
+            <label class="text-sm font-medium text-gray-700">Compare with Audit:</label>
+            <select name="with_id" class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">-- Select another audit to compare --</option>
+                {% for a in all_audits %}
+                    {% if a.id != audit.id %}
+                        <option value="{{ a.id }}" {% if with_id == a.id %}selected{% endif %}>
+                            {{ a.domain }} ({{ a.started_at[:16] if a.started_at else 'Unknown' }}) - {{ a.total_pages }} pages
+                        </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Run Comparison</button>
+        </form>
+    </div>
+
+    {% if diff %}
+        {% if diff.error %}
+            <div class="p-4 bg-red-50 text-red-700 border border-red-200 rounded">
+                {{ diff.error }}
+            </div>
+        {% else %}
+            <!-- Summary KPI cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                    <p class="text-xs text-gray-500 uppercase">Pages Crawled</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1">
+                        {{ diff.summary.current_pages }}
+                        <span class="text-xs {% if diff.summary.pages_diff >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            ({{ "%+d"|format(diff.summary.pages_diff) }})
+                        </span>
+                    </p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                    <p class="text-xs text-gray-500 uppercase">Health Score Diff</p>
+                    <p class="text-xl font-bold mt-1 {% if diff.summary.health_score_diff >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ "%+.1f"|format(diff.summary.health_score_diff) }} pts
+                    </p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                    <p class="text-xs text-gray-500 uppercase">New / Removed URLs</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1">
+                        <span class="text-green-600">+{{ diff.summary.added_count }}</span> / 
+                        <span class="text-red-600">-{{ diff.summary.removed_count }}</span>
+                    </p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
+                    <p class="text-xs text-gray-500 uppercase">Status Code Shifts</p>
+                    <p class="text-xl font-bold mt-1 {% if diff.summary.status_changes_count > 0 %}text-red-600{% else %}text-gray-800{% endif %}">
+                        {{ diff.summary.status_changes_count }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Status Code Changes Table -->
+            {% if diff.status_changes %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-red-50">
+                    <h4 class="text-md font-semibold text-red-800">Critical Status Code Changes ({{ diff.status_changes|length }})</h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-gray-500">
+                            <tr>
+                                <th class="px-6 py-3 text-left font-medium">URL</th>
+                                <th class="px-6 py-3 text-left font-medium">Previous Status</th>
+                                <th class="px-6 py-3 text-left font-medium">Current Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for sc in diff.status_changes %}
+                            <tr>
+                                <td class="px-6 py-4 font-mono text-xs text-blue-600">{{ sc.url }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ sc.old }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap font-bold text-red-600">{{ sc.new }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Title & Metadata Changes -->
+            {% if diff.title_changes %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-md font-semibold text-gray-800">Title Changes ({{ diff.title_changes|length }})</h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-gray-500">
+                            <tr>
+                                <th class="px-6 py-3 text-left font-medium">URL</th>
+                                <th class="px-6 py-3 text-left font-medium">Old Title</th>
+                                <th class="px-6 py-3 text-left font-medium">New Title</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for tc in diff.title_changes %}
+                            <tr>
+                                <td class="px-6 py-4 font-mono text-xs text-blue-600 max-w-xs truncate">{{ tc.url }}</td>
+                                <td class="px-6 py-4 text-xs text-gray-500">{{ tc.old }}</td>
+                                <td class="px-6 py-4 text-xs font-semibold text-gray-800">{{ tc.new }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

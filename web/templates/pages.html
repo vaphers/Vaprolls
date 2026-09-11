@@ -1,0 +1,1026 @@
+{% extends "base.html" %}
+
+{% block title %}All URLs (Spider Explorer) — {{ audit.domain or audit.url if audit else 'Workspace' }}{% endblock %}
+
+{% block content %}
+<!-- Zero-Gap Root Container: Pure White, Crisp 1px Borders, Black Text, Roboto Font -->
+<div class="h-full w-full flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-white text-black font-sans">
+
+    <!-- Top Screaming Frog Category Tabs (Docked Edge-to-Edge, All URLs First, Larger Font) -->
+    <div class="bg-white border-b border-[#D1D5DB] px-3 py-0 flex items-center justify-between shrink-0 overflow-x-auto text-sm select-none" id="category-tabs-bar">
+        <div class="flex items-center space-x-1 min-w-max" id="category-tabs">
+            {% set tabs = [
+                ('all', 'All URLs'),
+                ('internal', 'Internal'),
+                ('external', 'External'),
+                ('response_codes', 'Response Codes'),
+                ('page_titles', 'Page Titles'),
+                ('meta_description', 'Meta Description'),
+                ('h1', 'H1'),
+                ('h2', 'H2'),
+                ('content', 'Content'),
+                ('images', 'Images'),
+                ('canonicals', 'Canonicals'),
+                ('directives', 'Directives'),
+                ('structured_data', 'Structured Data')
+            ] %}
+            {% for t_key, t_label in tabs %}
+            <a href="{% if audit %}/?audit_id={{ audit.id }}&tab={{ t_key }}{% else %}/?tab={{ t_key }}{% endif %}"
+               class="px-3 py-2 transition-colors border-b-2 text-sm {% if current_tab == t_key %}border-b-black text-black font-bold bg-[#F3F4F6]{% else %}border-b-transparent text-black font-normal hover:bg-[#F3F4F6]{% endif %}">
+                {{ t_label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Secondary Filter Sub-bar (Include, Exclude, Quick Search, Content Type, Larger Text) -->
+    <div class="bg-white border-b border-[#D1D5DB] px-3 py-1.5 flex flex-wrap items-center justify-between gap-3 shrink-0 text-sm">
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="text-xs uppercase font-bold text-black">Filter:</span>
+            
+            <form id="subfilter-form" method="GET" action="/" class="inline-flex items-center gap-2 m-0 p-0">
+                {% if audit %}<input type="hidden" name="audit_id" value="{{ audit.id }}">{% endif %}
+                <input type="hidden" name="tab" value="{{ current_tab }}">
+                
+                <select name="content_type" id="content-type-filter" onchange="applyFiltersLive()" 
+                        class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black focus:outline-none focus:border-black font-normal">
+                    <option value="all" {% if current_content_type == 'all' %}selected{% endif %}>All Types</option>
+                    <option value="text/html" {% if current_content_type == 'text/html' %}selected{% endif %}>HTML</option>
+                    <option value="javascript" {% if current_content_type == 'javascript' %}selected{% endif %}>JavaScript</option>
+                    <option value="css" {% if current_content_type == 'css' %}selected{% endif %}>CSS</option>
+                    <option value="image" {% if current_content_type == 'image' %}selected{% endif %}>Images</option>
+                    <option value="pdf" {% if current_content_type == 'pdf' %}selected{% endif %}>PDF</option>
+                </select>
+            </form>
+
+            <span class="text-[#D1D5DB]">|</span>
+
+            <!-- Include Filter -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-xs uppercase font-bold text-black">Include:</span>
+                <input type="text" id="include-filter-input" value="{{ current_include }}" placeholder="Regex / text..." 
+                       class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black w-36 md:w-48 placeholder-gray-500 focus:outline-none focus:border-black font-normal"
+                       onkeyup="applyFiltersLive()">
+            </div>
+
+            <!-- Exclude Filter -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-xs uppercase font-bold text-black">Exclude:</span>
+                <input type="text" id="exclude-filter-input" value="{{ current_exclude }}" placeholder="Regex / text..." 
+                       class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black w-36 md:w-48 placeholder-gray-500 focus:outline-none focus:border-black font-normal"
+                       onkeyup="applyFiltersLive()">
+            </div>
+
+            <span class="text-[#D1D5DB]">|</span>
+
+            <!-- Live Table Quick Search -->
+            <div class="flex items-center gap-1.5">
+                <input type="text" id="table-search-input" value="{{ search_query }}" placeholder="Search in table..." 
+                       class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black w-40 md:w-56 placeholder-gray-500 focus:outline-none focus:border-black font-normal"
+                       onkeyup="applyFiltersLive()">
+            </div>
+
+            <button type="button" onclick="clearFilters()" class="text-xs uppercase font-bold text-black hover:underline cursor-pointer">
+                Clear
+            </button>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs font-semibold text-black">
+            <span>
+                Showing <strong class="text-black text-sm" id="visible-count">{{ pages|length }}</strong> of {{ total_pages }} URLs
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Workspace Split: Left Master Table & Inspector | Right URL Overview & Issues -->
+    <div class="flex-1 flex flex-col lg:flex-row min-h-0 m-0 p-0 overflow-hidden bg-white text-black">
+        
+        <!-- Left Column: Master Table & Bottom Inspector -->
+        <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-white">
+            
+            <!-- Master Table Container (Upper Split, Zero Padding, Legible Font Size) -->
+            <div class="flex-1 min-h-[220px] max-h-[50vh] overflow-auto select-none bg-white" id="master-table-container">
+                <table class="w-full border-collapse text-left font-sans text-[13.5px]" id="master-url-table">
+                    <thead class="sticky top-0 bg-white z-10 border-b-2 border-[#D1D5DB] shadow-none">
+                        <tr class="text-black uppercase tracking-wider text-xs font-bold bg-[#F8F9FA]">
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-12 text-center">#</th>
+                            <th class="py-2 px-3 border-r border-[#D1D5DB] min-w-[360px]">Address</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Content Type</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-24 text-center">Status Code</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-28">Status</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Indexability</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-36">Indexability Status</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Hash</th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-24 text-right">Length</th>
+                            <th class="py-2 px-3 border-r border-[#D1D5DB] min-w-[260px]">Canonical Link Element</th>
+                            <th class="py-2 px-3 min-w-[300px]">URL Encoded Address</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#D1D5DB] text-black bg-white">
+                        {% for page in pages %}
+                        <tr class="url-row hover:bg-[#F3F4F6] cursor-pointer transition-colors {% if loop.first %}selected-row bg-[#E5E7EB]{% endif %}"
+                            data-page-id="{{ page.id }}"
+                            data-url="{{ page.url }}"
+                            data-status-code="{{ page.status_code }}"
+                            data-status="{{ page.status }}"
+                            data-indexability="{{ page.indexability }}"
+                            data-indexability-status="{{ page.indexability_status }}"
+                            data-content-type="{{ page.content_type }}"
+                            data-mime="{{ page.mime_type }}"
+                            data-hash="{{ page.content_hash }}"
+                            data-length="{{ page.length }}"
+                            data-canonical="{{ page.canonical_url }}"
+                            data-encoded="{{ page.url_encoded_address }}"
+                            data-title="{{ page.title | e }}"
+                            data-meta-desc="{{ page.meta_description | e }}"
+                            data-h1="{{ page.h1 | e }}"
+                            data-word-count="{{ page.word_count }}"
+                            data-depth="{{ page.crawl_depth }}"
+                            data-inlinks="{{ page.inlinks_count }}"
+                            data-outlinks="{{ page.outlinks_count }}"
+                            data-extlinks="{{ page.external_links_count }}"
+                            data-images="{{ page.images_count }}"
+                            data-schemas="{{ page.schema_count }}"
+                            data-response-time="{{ page.response_time_ms }}"
+                            data-robots="{{ page.robots_directive }}"
+                            data-language="{{ page.language }}"
+                            data-parent="{{ page.parent_url }}"
+                            data-issues-count="{{ page.issues_count }}"
+                            data-issues-json="{{ page.issues | tojson | forceescape if page.issues else '[]' }}"
+                            onclick="selectPageRow(this, {{ page.id }})">
+                            
+                            <!-- 1. # -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-center font-bold text-black align-top">{{ loop.index }}</td>
+                            
+                            <!-- 2. Address (Full URL, wrapped if long, NO cut off, readable black text) -->
+                            <td class="py-1.5 px-3 border-r border-[#D1D5DB] text-[13.5px] align-top break-all whitespace-normal select-all font-normal text-black">
+                                <div class="flex items-start gap-1.5">
+                                    <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer" class="text-black hover:text-blue-600 shrink-0 mt-0.5" onclick="event.stopPropagation()" title="Open URL in new tab">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                    <span class="break-all whitespace-normal font-normal text-black">{{ page.url }}</span>
+                                </div>
+                            </td>
+
+                            <!-- 3. Content Type -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs break-all whitespace-normal">{{ page.content_type }}</td>
+                            
+                            <!-- 4. Status Code -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-center align-top font-bold text-xs">
+                                {% if page.status_code == 200 %}
+                                <span class="text-[#15803D]">200</span>
+                                {% elif page.status_code >= 300 and page.status_code < 400 %}
+                                <span class="text-[#B45309]">{{ page.status_code }}</span>
+                                {% elif page.status_code >= 400 %}
+                                <span class="text-[#B91C1C]">{{ page.status_code }}</span>
+                                {% else %}
+                                <span class="text-black">{{ page.status_code }}</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- 5. Status -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs truncate">{{ page.status }}</td>
+
+                            <!-- 6. Indexability -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] align-top text-xs truncate">
+                                {% if page.indexability == 'Indexable' %}
+                                <span class="inline-flex items-center gap-1.5 text-[#15803D] font-bold">
+                                    <span class="w-2 h-2 bg-[#15803D] shrink-0"></span>
+                                    <span>Indexable</span>
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center gap-1.5 text-[#B45309] font-bold">
+                                    <span class="w-2 h-2 bg-[#B45309] shrink-0"></span>
+                                    <span>Non-Indexable</span>
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- 7. Indexability Status -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs truncate font-medium" title="{{ page.indexability_status }}">
+                                {{ page.indexability_status }}
+                            </td>
+
+                            <!-- 8. Hash -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-xs text-black align-top truncate" title="{{ page.content_hash }}">
+                                {{ page.content_hash[:12] }}
+                            </td>
+
+                            <!-- 9. Length -->
+                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-right text-black font-semibold align-top text-xs">
+                                {{ page.length or 0 }}
+                            </td>
+
+                            <!-- 10. Canonical Link Element (Full wrapped, no cut off) -->
+                            <td class="py-1.5 px-3 border-r border-[#D1D5DB] text-xs text-black align-top break-all whitespace-normal select-all" title="{{ page.canonical_url }}">
+                                {{ page.canonical_url or '—' }}
+                            </td>
+
+                            <!-- 11. URL Encoded Address (Full wrapped, no cut off) -->
+                            <td class="py-1.5 px-3 text-xs text-black align-top break-all whitespace-normal select-all">
+                                {{ page.url_encoded_address }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="11" class="py-12 text-center text-black font-medium text-sm">
+                                {% if not audit %}
+                                Ready to crawl. Enter a website URL in the top bar above and click <strong>Start</strong>.
+                                {% else %}
+                                No URLs match the selected category and filters.
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Draggable Horizontal Splitter Bar (Adjust Bottom Panel Height) -->
+            <div id="inspector-resizer" 
+                 class="h-2 bg-[#E5E7EB] hover:bg-[#70866B] active:bg-[#4F654C] cursor-row-resize select-none shrink-0 transition-colors flex items-center justify-center border-t border-b border-[#D1D5DB] group" 
+                 title="Click and drag up or down to adjust bottom panel height">
+                <div class="w-10 h-0.5 bg-[#9CA3AF] group-hover:bg-white rounded-full"></div>
+            </div>
+
+            <!-- Bottom Split Inspector Panel (Resizable Height, Overflow Auto) -->
+            <div class="flex flex-col min-h-0 bg-white shrink-0" id="inspector-container" style="height: 340px;">
+                
+                <!-- Inspector Header -->
+                <div class="bg-white border-b border-[#D1D5DB] px-3 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0 text-sm font-medium">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-xs uppercase font-bold text-black">Inspected URL:</span>
+                        <span id="inspect-url-display" class="text-sm text-black font-bold break-all select-all">
+                            Select a URL from the table above
+                        </span>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0 text-xs">
+                        <span id="inspect-badge-status" class="px-2 py-0.5 border border-[#D1D5DB] bg-white text-black font-bold">200 OK</span>
+                        <span id="inspect-badge-index" class="px-2 py-0.5 border border-[#D1D5DB] bg-white text-[#15803D] font-bold">Indexable</span>
+                    </div>
+                </div>
+
+                <!-- Inspector Tabs Strip -->
+                <div class="bg-white border-b border-[#D1D5DB] flex items-center overflow-x-auto shrink-0 text-sm select-none">
+                    {% set insp_tabs = [
+                        ('details', 'URL Details'),
+                        ('inlinks', 'Inlinks'),
+                        ('outlinks', 'Outlinks'),
+                        ('images', 'Image Details'),
+                        ('serp', 'SERP Snippet'),
+                        ('headers', 'HTTP Headers'),
+                        ('structured_data', 'Structured Data')
+                    ] %}
+                    {% for it_id, it_label in insp_tabs %}
+                    <button type="button" onclick="switchInspectorTab('{{ it_id }}')" id="insp-tab-btn-{{ it_id }}"
+                            class="insp-tab-btn px-3 py-1.5 border-r border-[#D1D5DB] border-b-2 text-black hover:bg-[#F3F4F6] transition-colors {% if loop.first %}border-b-black text-black font-bold bg-[#F3F4F6]{% else %}border-b-transparent font-normal{% endif %} cursor-pointer">
+                        {{ it_label }} <span id="insp-badge-count-{{ it_id }}" class="text-xs font-bold text-black"></span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <!-- Inspector Panels Body -->
+                <div class="flex-1 overflow-auto p-3 text-sm min-h-0 bg-white text-black" id="inspector-panels">
+                    
+                    <!-- 1. URL Details Panel -->
+                    <div id="insp-panel-details" class="insp-panel space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">URL & Status</div>
+                                <div id="det-url" class="font-medium text-black break-all select-all mt-1 text-sm"></div>
+                                <div class="mt-1 text-black font-medium">Status Code: <span id="det-status-code" class="text-black font-bold"></span> (<span id="det-status"></span>)</div>
+                            </div>
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">Indexability & Directives</div>
+                                <div class="mt-1 font-medium">Indexability: <strong id="det-indexability" class="text-black font-bold"></strong></div>
+                                <div class="text-black truncate mt-1">Robots: <span id="det-robots" class="text-black font-bold"></span></div>
+                            </div>
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">Canonical</div>
+                                <div id="det-canonical" class="text-black break-all select-all mt-1 text-sm font-medium"></div>
+                                <div class="text-black mt-1">Reason: <span id="det-index-status" class="text-black font-bold"></span></div>
+                            </div>
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">Content & Structure</div>
+                                <div class="mt-1">Word Count: <strong id="det-words" class="text-black font-bold"></strong> | Length: <span id="det-size" class="font-bold"></span> bytes</div>
+                                <div class="text-black mt-1">Language: <span id="det-lang" class="text-black font-bold"></span> | Depth: <span id="det-depth" class="font-bold"></span></div>
+                            </div>
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">Link Graph & Assets</div>
+                                <div class="mt-1">Inlinks: <strong id="det-inlinks" class="text-black font-bold"></strong> | Outlinks: <span id="det-outlinks" class="font-bold"></span></div>
+                                <div class="text-black mt-1">Images: <span id="det-images" class="font-bold"></span> | Schemas: <span id="det-schemas" class="font-bold"></span></div>
+                            </div>
+                            <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                                <div class="text-xs text-black uppercase font-bold">Parent & Timing</div>
+                                <div id="det-parent" class="text-black break-all mt-1 text-xs"></div>
+                                <div class="text-black mt-1">Response Time: <span id="det-time" class="text-black font-bold"></span> ms</div>
+                            </div>
+                        </div>
+
+                        <!-- On-Page Meta Snippets -->
+                        <div class="border border-[#D1D5DB] p-3 bg-white space-y-2 text-sm">
+                            <div>
+                                <span class="text-xs text-black uppercase font-bold block">Title Tag:</span>
+                                <div id="det-title" class="font-medium text-black select-all mt-0.5"></div>
+                            </div>
+                            <div class="pt-1.5 border-t border-[#D1D5DB]">
+                                <span class="text-xs text-black uppercase font-bold block">Meta Description:</span>
+                                <div id="det-desc" class="text-black select-all mt-0.5"></div>
+                            </div>
+                            <div class="pt-1.5 border-t border-[#D1D5DB]">
+                                <span class="text-xs text-black uppercase font-bold block">H1 Heading:</span>
+                                <div id="det-h1" class="text-black font-medium select-all mt-0.5"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Inlinks Panel -->
+                    <div id="insp-panel-inlinks" class="insp-panel hidden">
+                        <div class="overflow-auto border border-[#D1D5DB] max-h-56">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-[#F8F9FA] border-b border-[#D1D5DB] text-black uppercase font-bold">
+                                    <tr>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Source URL</th>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Anchor Text</th>
+                                        <th class="p-2 text-center border-r border-[#D1D5DB] w-24">Status</th>
+                                        <th class="p-2 text-center w-24">Nofollow</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inlinks-table-body" class="divide-y divide-[#D1D5DB] text-black"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 3. Outlinks Panel -->
+                    <div id="insp-panel-outlinks" class="insp-panel hidden">
+                        <div class="overflow-auto border border-[#D1D5DB] max-h-56">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-[#F8F9FA] border-b border-[#D1D5DB] text-black uppercase font-bold">
+                                    <tr>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Destination URL</th>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Anchor Text</th>
+                                        <th class="p-2 text-center border-r border-[#D1D5DB] w-24">Type</th>
+                                        <th class="p-2 text-center w-24">Nofollow</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="outlinks-table-body" class="divide-y divide-[#D1D5DB] text-black"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 4. Images Panel -->
+                    <div id="insp-panel-images" class="insp-panel hidden">
+                        <div class="overflow-auto border border-[#D1D5DB] max-h-56">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-[#F8F9FA] border-b border-[#D1D5DB] text-black uppercase font-bold">
+                                    <tr>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Image URL</th>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB]">Alt Text</th>
+                                        <th class="p-2 text-center border-r border-[#D1D5DB] w-28">Dimensions</th>
+                                        <th class="p-2 text-center border-r border-[#D1D5DB] w-24">Size</th>
+                                        <th class="p-2 text-center w-24">Lazy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="images-table-body" class="divide-y divide-[#D1D5DB] text-black"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 5. SERP Snippet Preview -->
+                    <div id="insp-panel-serp" class="insp-panel hidden">
+                        <div class="max-w-xl border border-[#D1D5DB] p-4 bg-white">
+                            <div class="flex items-center justify-between border-b border-[#D1D5DB] pb-2 mb-3">
+                                <span class="text-xs text-black uppercase font-bold">Google SERP Snippet Preview</span>
+                                <div class="text-xs text-black font-medium">
+                                    Title: <span id="serp-title-len" class="font-bold text-black">0</span> chars | 
+                                    Desc: <span id="serp-desc-len" class="font-bold text-black">0</span> chars
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div id="serp-url-view" class="text-xs text-[#202124] break-all">https://example.com/page</div>
+                                <div id="serp-title-view" class="text-lg text-[#1a0dab] hover:underline cursor-pointer font-medium leading-snug break-words">Page Title Display</div>
+                                <div id="serp-desc-view" class="text-sm text-[#4d5156] leading-relaxed break-words">Meta description snippet will appear here.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. HTTP Headers Panel -->
+                    <div id="insp-panel-headers" class="insp-panel hidden">
+                        <div class="overflow-auto border border-[#D1D5DB] max-h-56">
+                            <table class="w-full border-collapse text-xs">
+                                <thead class="bg-[#F8F9FA] border-b border-[#D1D5DB] text-black uppercase font-bold">
+                                    <tr>
+                                        <th class="p-2 text-left border-r border-[#D1D5DB] w-52">Header</th>
+                                        <th class="p-2 text-left">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="headers-table-body" class="divide-y divide-[#D1D5DB] text-black"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 7. Structured Data Panel -->
+                    <div id="insp-panel-structured_data" class="insp-panel hidden">
+                        <div id="sd-content-container" class="space-y-2"></div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Draggable Vertical Splitter Bar (Adjust Right Sidebar Width) -->
+        <div id="sidebar-resizer" 
+             class="w-2 bg-[#E5E7EB] hover:bg-[#70866B] active:bg-[#4F654C] cursor-col-resize select-none shrink-0 transition-colors hidden lg:flex items-center justify-center border-l border-r border-[#D1D5DB] group" 
+             title="Click and drag left or right to adjust sidebar width">
+            <div class="h-10 w-0.5 bg-[#9CA3AF] group-hover:bg-white rounded-full"></div>
+        </div>
+
+        <!-- Right Column: URL-Specific Overview & Issues (Resizable Width) -->
+        <div id="right-panel-container" class="w-full lg:w-auto shrink-0 flex flex-col min-h-0 bg-white text-black" style="width: 360px;">
+            
+            <!-- Right Panel Header Tabs -->
+            <div class="bg-white border-b border-[#D1D5DB] flex items-center shrink-0 text-sm select-none">
+                <button type="button" onclick="switchRightTab('overview')" id="rtab-btn-overview"
+                        class="px-4 py-2 border-r border-[#D1D5DB] font-bold text-black bg-[#F3F4F6] border-b-2 border-b-black cursor-pointer">
+                    URL Overview
+                </button>
+                <button type="button" onclick="switchRightTab('issues')" id="rtab-btn-issues"
+                        class="px-4 py-2 border-r border-[#D1D5DB] text-black font-medium hover:bg-[#F3F4F6] cursor-pointer">
+                    URL Issues (<span id="rtab-issues-count" class="font-bold">0</span>)
+                </button>
+            </div>
+
+            <!-- Overview Body: Profile FOR THAT SPECIFIC URL -->
+            <div id="rpanel-overview" class="flex-1 flex flex-col min-h-0 overflow-y-auto p-3.5 space-y-3.5 text-sm">
+                
+                <!-- URL Address Banner -->
+                <div class="border border-[#D1D5DB] p-2.5 bg-[#F8F9FA]">
+                    <div class="text-xs text-black uppercase font-bold">Inspected URL</div>
+                    <div id="rov-url" class="font-bold text-black break-all select-all mt-1 text-[13px] leading-snug">
+                        Select a URL from the table
+                    </div>
+                </div>
+
+                <!-- Status & Indexability Metrics -->
+                <div class="border border-[#D1D5DB] divide-y divide-[#D1D5DB] bg-white text-xs">
+                    <div class="px-3 py-2 flex justify-between items-center">
+                        <span class="text-black font-medium">HTTP Status:</span>
+                        <span id="rov-status" class="font-bold text-black text-sm">200 OK</span>
+                    </div>
+                    <div class="px-3 py-2 flex justify-between items-center">
+                        <span class="text-black font-medium">Indexability:</span>
+                        <span id="rov-indexability" class="font-bold text-[#15803D] text-sm">Indexable</span>
+                    </div>
+                    <div class="px-3 py-2 flex justify-between items-center">
+                        <span class="text-black font-medium">Index Reason:</span>
+                        <span id="rov-index-status" class="text-black font-bold truncate max-w-[190px]">OK</span>
+                    </div>
+                    <div class="px-3 py-2 flex justify-between items-center">
+                        <span class="text-black font-medium">Content Type:</span>
+                        <span id="rov-content-type" class="text-black font-bold truncate max-w-[190px]">text/html</span>
+                    </div>
+                </div>
+
+                <!-- Technical & Canonical Profile -->
+                <div class="border border-[#D1D5DB] p-3 bg-white space-y-2 text-xs">
+                    <div>
+                        <span class="text-xs text-black uppercase font-bold block">Canonical Link Element:</span>
+                        <span id="rov-canonical" class="text-black font-medium break-all select-all block mt-1 text-xs">—</span>
+                    </div>
+                    <div class="flex justify-between pt-1.5 border-t border-[#D1D5DB]">
+                        <span class="text-black">Length:</span>
+                        <span id="rov-length" class="text-black font-bold">0 bytes</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-black">Word Count:</span>
+                        <span id="rov-words" class="text-black font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-black">Crawl Depth:</span>
+                        <span id="rov-depth" class="text-black font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-black">Response Time:</span>
+                        <span id="rov-time" class="text-black font-bold">0 ms</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-black">Inlinks:</span>
+                        <span id="rov-inlinks" class="text-black font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-black">Outlinks:</span>
+                        <span id="rov-outlinks" class="text-black font-bold">0</span>
+                    </div>
+                </div>
+
+                <!-- On-Page Elements Extracts -->
+                <div class="border border-[#D1D5DB] p-3 bg-white space-y-2 text-xs">
+                    <div>
+                        <div class="flex justify-between items-center text-xs text-black uppercase font-bold">
+                            <span>Page Title</span>
+                            <span><span id="rov-title-len" class="font-bold">0</span> chars</span>
+                        </div>
+                        <div id="rov-title" class="text-black font-medium mt-1 break-words select-all text-sm leading-snug">—</div>
+                    </div>
+                    <div class="pt-2 border-t border-[#D1D5DB]">
+                        <div class="flex justify-between items-center text-xs text-black uppercase font-bold">
+                            <span>Meta Description</span>
+                            <span><span id="rov-desc-len" class="font-bold">0</span> chars</span>
+                        </div>
+                        <div id="rov-desc" class="text-black mt-1 break-words select-all text-xs leading-relaxed">—</div>
+                    </div>
+                    <div class="pt-2 border-t border-[#D1D5DB]">
+                        <span class="text-xs text-black uppercase font-bold block">H1 Heading:</span>
+                        <div id="rov-h1" class="text-black font-medium mt-1 break-words select-all text-sm leading-snug">—</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Issues Body: Issues Specifically for THAT URL -->
+            <div id="rpanel-issues" class="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-2.5 hidden bg-white">
+                <div class="text-xs uppercase font-bold text-black">
+                    Issues On Inspected URL
+                </div>
+                <div id="rov-issues-list" class="space-y-2 text-xs text-black">
+                    <!-- Populated dynamically per URL -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const auditId = "{{ audit.id if audit else '' }}";
+let activePageId = null;
+
+// Handle row selection and populate BOTH inspector and right panel for that specific URL
+function selectPageRow(rowEl, pageId) {
+    // 1. Highlight clicked row
+    document.querySelectorAll('.url-row').forEach(r => {
+        r.classList.remove('selected-row', 'bg-[#E5E7EB]');
+    });
+    rowEl.classList.add('selected-row', 'bg-[#E5E7EB]');
+
+    activePageId = pageId;
+
+    // 2. Read pre-embedded dataset attributes
+    const d = rowEl.dataset;
+
+    // 3. Update Bottom Inspector Header
+    document.getElementById('inspect-url-display').textContent = d.url;
+    
+    const scBadge = document.getElementById('inspect-badge-status');
+    scBadge.textContent = `${d.statusCode} ${d.status}`;
+    if (d.statusCode === '200') {
+        scBadge.className = "px-2 py-0.5 border border-[#15803D] bg-white text-[#15803D] font-bold";
+    } else if (d.statusCode && d.statusCode.startsWith('3')) {
+        scBadge.className = "px-2 py-0.5 border border-[#B45309] bg-white text-[#B45309] font-bold";
+    } else {
+        scBadge.className = "px-2 py-0.5 border border-[#B91C1C] bg-white text-[#B91C1C] font-bold";
+    }
+
+    const idxBadge = document.getElementById('inspect-badge-index');
+    idxBadge.textContent = d.indexability;
+    if (d.indexability === 'Indexable') {
+        idxBadge.className = "px-2 py-0.5 border border-[#15803D] bg-white text-[#15803D] font-bold";
+    } else {
+        idxBadge.className = "px-2 py-0.5 border border-[#B45309] bg-white text-[#B45309] font-bold";
+    }
+
+    // 4. Update Bottom Inspector Details Tab
+    document.getElementById('det-url').textContent = d.url;
+    document.getElementById('det-status-code').textContent = d.statusCode;
+    document.getElementById('det-status').textContent = d.status;
+    document.getElementById('det-indexability').textContent = d.indexability;
+    document.getElementById('det-index-status').textContent = d.indexabilityStatus || '—';
+    document.getElementById('det-robots').textContent = d.robots || '—';
+    document.getElementById('det-canonical').textContent = d.canonical || '—';
+    document.getElementById('det-words').textContent = d.wordCount || 0;
+    document.getElementById('det-size').textContent = d.length || 0;
+    document.getElementById('det-lang').textContent = d.language || '—';
+    document.getElementById('det-depth').textContent = d.depth || 0;
+    document.getElementById('det-inlinks').textContent = d.inlinks || 0;
+    document.getElementById('det-outlinks').textContent = d.outlinks || 0;
+    document.getElementById('det-images').textContent = d.images || 0;
+    document.getElementById('det-schemas').textContent = d.schemas || 0;
+    document.getElementById('det-parent').textContent = d.parent || 'Direct Seed';
+    document.getElementById('det-time').textContent = d.responseTime || 0;
+
+    document.getElementById('det-title').textContent = d.title || '—';
+    document.getElementById('det-desc').textContent = d.metaDesc || '—';
+    document.getElementById('det-h1').textContent = d.h1 || '—';
+
+    // 5. Update SERP Snippet Tab
+    document.getElementById('serp-title-view').textContent = d.title || d.url;
+    document.getElementById('serp-url-view').textContent = d.url;
+    document.getElementById('serp-desc-view').textContent = d.metaDesc || 'No meta description set for this webpage.';
+    document.getElementById('serp-title-len').textContent = (d.title || '').length;
+    document.getElementById('serp-desc-len').textContent = (d.metaDesc || '').length;
+
+    // 6. UPDATE RIGHT PANEL: OVERVIEW FOR THIS SPECIFIC URL
+    document.getElementById('rov-url').textContent = d.url;
+    document.getElementById('rov-status').textContent = `${d.statusCode} ${d.status}`;
+    document.getElementById('rov-indexability').textContent = d.indexability;
+    document.getElementById('rov-index-status').textContent = d.indexabilityStatus || '—';
+    document.getElementById('rov-content-type').textContent = d.contentType || '—';
+    document.getElementById('rov-canonical').textContent = d.canonical || '—';
+    document.getElementById('rov-length').textContent = `${d.length || 0} bytes`;
+    document.getElementById('rov-words').textContent = d.wordCount || 0;
+    document.getElementById('rov-depth').textContent = d.depth || 0;
+    document.getElementById('rov-time').textContent = `${d.responseTime || 0} ms`;
+    document.getElementById('rov-inlinks').textContent = d.inlinks || 0;
+    document.getElementById('rov-outlinks').textContent = d.outlinks || 0;
+
+    document.getElementById('rov-title').textContent = d.title || '—';
+    document.getElementById('rov-title-len').textContent = (d.title || '').length;
+    document.getElementById('rov-desc').textContent = d.metaDesc || '—';
+    document.getElementById('rov-desc-len').textContent = (d.metaDesc || '').length;
+    document.getElementById('rov-h1').textContent = d.h1 || '—';
+
+    // 7. UPDATE RIGHT PANEL: ISSUES FOR THIS SPECIFIC URL
+    const issuesContainer = document.getElementById('rov-issues-list');
+    issuesContainer.innerHTML = '';
+    let parsedIssues = [];
+    try {
+        parsedIssues = JSON.parse(d.issuesJson || '[]');
+    } catch (e) {
+        parsedIssues = [];
+    }
+
+    document.getElementById('rtab-issues-count').textContent = parsedIssues.length;
+
+    if (parsedIssues.length === 0) {
+        issuesContainer.innerHTML = '<div class="p-3 text-center text-[#15803D] font-bold border border-[#D1D5DB] bg-[#F8F9FA]">✓ No issues found on this URL.</div>';
+    } else {
+        parsedIssues.forEach(iss => {
+            const card = document.createElement('div');
+            let colorClass = "border-[#D1D5DB]";
+            let badgeColor = "text-black";
+            if (iss.severity === 'critical' || iss.severity === 'high') {
+                colorClass = "border-[#B91C1C]";
+                badgeColor = "text-[#B91C1C]";
+            } else if (iss.severity === 'medium') {
+                colorClass = "border-[#B45309]";
+                badgeColor = "text-[#B45309]";
+            }
+            card.className = `border ${colorClass} p-2.5 bg-white space-y-1`;
+            card.innerHTML = `
+                <div class="flex items-center justify-between text-xs font-bold">
+                    <span class="text-black">${(iss.issue_type || '').replace(/_/g, ' ').toUpperCase()}</span>
+                    <span class="uppercase text-[11px] font-bold ${badgeColor}">[${iss.severity}]</span>
+                </div>
+                <div class="text-black text-xs leading-snug">${iss.message}</div>
+                ${iss.recommendation ? `<div class="text-xs text-black font-medium bg-[#F3F4F6] p-1.5 border-l-2 border-black">Rec: ${iss.recommendation}</div>` : ''}
+            `;
+            issuesContainer.appendChild(card);
+        });
+    }
+
+    // 8. Fetch Deep Relational Datasets (Inlinks, Outlinks, Images, Headers, SD)
+    if (auditId) {
+        fetchInspectorData(pageId);
+    }
+}
+
+// Fetch asynchronous relational datasets for the inspector
+async function fetchInspectorData(pageId) {
+    try {
+        const res = await fetch(`/api/audit/${auditId}/page/${pageId}/inspector`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // 1. Inlinks
+        const inlinksTbody = document.getElementById('inlinks-table-body');
+        inlinksTbody.innerHTML = '';
+        document.getElementById('insp-badge-count-inlinks').textContent = `(${data.inlinks.length})`;
+        if (data.inlinks.length === 0) {
+            inlinksTbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-black">No inlinks recorded for this URL.</td></tr>';
+        } else {
+            data.inlinks.forEach(link => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#F3F4F6]";
+                tr.innerHTML = `
+                    <td class="p-2 border-r border-[#D1D5DB] break-all select-all text-black">${link.source_url}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] truncate max-w-xs text-black font-medium">${link.anchor_text}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] text-center text-[#15803D] font-bold">${link.status_code}</td>
+                    <td class="p-2 text-center text-black">${link.nofollow ? 'Yes' : 'No'}</td>
+                `;
+                inlinksTbody.appendChild(tr);
+            });
+        }
+
+        // 2. Outlinks
+        const outlinksTbody = document.getElementById('outlinks-table-body');
+        outlinksTbody.innerHTML = '';
+        document.getElementById('insp-badge-count-outlinks').textContent = `(${data.outlinks.length})`;
+        if (data.outlinks.length === 0) {
+            outlinksTbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-black">No outlinks recorded for this URL.</td></tr>';
+        } else {
+            data.outlinks.forEach(link => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#F3F4F6]";
+                tr.innerHTML = `
+                    <td class="p-2 border-r border-[#D1D5DB] break-all select-all text-black">${link.target_url}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] truncate max-w-xs text-black font-medium">${link.anchor_text}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] text-center text-black">${link.is_internal ? 'Internal' : 'External'}</td>
+                    <td class="p-2 text-center text-black">${link.nofollow ? 'Yes' : 'No'}</td>
+                `;
+                outlinksTbody.appendChild(tr);
+            });
+        }
+
+        // 3. Images
+        const imgTbody = document.getElementById('images-table-body');
+        imgTbody.innerHTML = '';
+        document.getElementById('insp-badge-count-images').textContent = `(${data.images.length})`;
+        if (data.images.length === 0) {
+            imgTbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-black">No images discovered on this URL.</td></tr>';
+        } else {
+            data.images.forEach(img => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#F3F4F6]";
+                tr.innerHTML = `
+                    <td class="p-2 border-r border-[#D1D5DB] break-all select-all text-black">${img.src}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] truncate max-w-xs ${img.alt_text ? 'text-black' : 'text-[#B91C1C] font-bold'}">${img.alt_text || 'Missing Alt'}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] text-center text-black">${img.width && img.height ? img.width + 'x' + img.height : '—'}</td>
+                    <td class="p-2 border-r border-[#D1D5DB] text-center text-black">${img.file_size ? img.file_size + ' B' : '—'}</td>
+                    <td class="p-2 text-center text-black">${img.is_lazy_loaded ? 'Yes' : 'No'}</td>
+                `;
+                imgTbody.appendChild(tr);
+            });
+        }
+
+        // 4. HTTP Headers
+        const headersTbody = document.getElementById('headers-table-body');
+        headersTbody.innerHTML = '';
+        const hdrKeys = Object.keys(data.headers || {});
+        document.getElementById('insp-badge-count-headers').textContent = `(${hdrKeys.length})`;
+        if (hdrKeys.length === 0) {
+            headersTbody.innerHTML = '<tr><td colspan="2" class="p-3 text-center text-black">No HTTP headers recorded.</td></tr>';
+        } else {
+            hdrKeys.forEach(k => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-[#F3F4F6]";
+                tr.innerHTML = `
+                    <td class="p-2 border-r border-[#D1D5DB] font-bold text-black">${k}</td>
+                    <td class="p-2 text-black break-all select-all">${data.headers[k]}</td>
+                `;
+                headersTbody.appendChild(tr);
+            });
+        }
+
+        // 5. Structured Data
+        const sdContainer = document.getElementById('sd-content-container');
+        sdContainer.innerHTML = '';
+        document.getElementById('insp-badge-count-structured_data').textContent = `(${data.structured_data.length})`;
+        if (data.structured_data.length === 0) {
+            sdContainer.innerHTML = '<div class="p-3 text-center text-black border border-[#D1D5DB]">No Structured Data / Schema.org items detected.</div>';
+        } else {
+            data.structured_data.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "border border-[#D1D5DB] p-2.5 bg-[#F8F9FA] text-xs";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 font-bold">
+                        <span class="text-black">@type: ${s.schema_type}</span>
+                        <span class="${s.is_valid ? 'text-[#15803D]' : 'text-[#B91C1C]'}">${s.is_valid ? 'Valid Schema' : 'Schema Warnings'}</span>
+                    </div>
+                    <pre class="bg-white p-2.5 border border-[#D1D5DB] text-xs overflow-x-auto max-h-36 text-black">${s.data_json}</pre>
+                `;
+                sdContainer.appendChild(card);
+            });
+        }
+
+    } catch (err) {
+        console.error("Inspector fetch failed:", err);
+    }
+}
+
+// Inspector Tabs Switcher
+function switchInspectorTab(tabId) {
+    document.querySelectorAll('.insp-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.insp-tab-btn').forEach(b => {
+        b.classList.remove('border-b-black', 'text-black', 'font-bold', 'bg-[#F3F4F6]');
+        b.classList.add('border-b-transparent', 'text-black', 'font-normal');
+    });
+
+    const activePanel = document.getElementById(`insp-panel-${tabId}`);
+    if (activePanel) activePanel.classList.remove('hidden');
+
+    const activeBtn = document.getElementById(`insp-tab-btn-${tabId}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('border-b-transparent', 'font-normal');
+        activeBtn.classList.add('border-b-black', 'text-black', 'font-bold', 'bg-[#F3F4F6]');
+    }
+}
+
+// Right Panel Switcher (Overview vs Issues for that URL)
+function switchRightTab(tabId) {
+    const pOverview = document.getElementById('rpanel-overview');
+    const pIssues = document.getElementById('rpanel-issues');
+    const btnOverview = document.getElementById('rtab-btn-overview');
+    const btnIssues = document.getElementById('rtab-btn-issues');
+
+    if (tabId === 'overview') {
+        pOverview.classList.remove('hidden');
+        pIssues.classList.add('hidden');
+        btnOverview.className = "px-4 py-2 border-r border-[#D1D5DB] font-bold text-black bg-[#F3F4F6] border-b-2 border-b-black cursor-pointer";
+        btnIssues.className = "px-4 py-2 border-r border-[#D1D5DB] text-black font-medium hover:bg-[#F3F4F6] cursor-pointer";
+    } else {
+        pOverview.classList.add('hidden');
+        pIssues.classList.remove('hidden');
+        btnIssues.className = "px-4 py-2 border-r border-[#D1D5DB] font-bold text-black bg-[#F3F4F6] border-b-2 border-b-black cursor-pointer";
+        btnOverview.className = "px-4 py-2 border-r border-[#D1D5DB] text-black font-medium hover:bg-[#F3F4F6] cursor-pointer";
+    }
+}
+
+// Live Client-Side Filters (Search + Include Regex + Exclude Regex + Content Type)
+function applyFiltersLive() {
+    const searchTerm = (document.getElementById('table-search-input')?.value || '').toLowerCase().trim();
+    const incTerm = (document.getElementById('include-filter-input')?.value || '').trim();
+    const excTerm = (document.getElementById('exclude-filter-input')?.value || '').trim();
+    const cType = (document.getElementById('content-type-filter')?.value || 'all').toLowerCase();
+
+    let incRegex = null;
+    if (incTerm) {
+        try { incRegex = new RegExp(incTerm, 'i'); } catch (e) { incRegex = null; }
+    }
+
+    let excRegex = null;
+    if (excTerm) {
+        try { excRegex = new RegExp(excTerm, 'i'); } catch (e) { excRegex = null; }
+    }
+
+    const rows = document.querySelectorAll('#master-url-table tbody tr.url-row');
+    let visible = 0;
+
+    rows.forEach(r => {
+        const url = r.dataset.url || '';
+        const text = r.textContent.toLowerCase();
+        const ct = (r.dataset.contentType || '').toLowerCase();
+
+        let show = true;
+
+        // Content Type
+        if (cType !== 'all') {
+            if (cType === 'text/html' && !ct.includes('html')) show = false;
+            else if (cType === 'image' && !ct.includes('image')) show = false;
+            else if (cType === 'javascript' && !ct.includes('javascript') && !ct.includes('js')) show = false;
+            else if (cType === 'css' && !ct.includes('css')) show = false;
+            else if (cType === 'pdf' && !ct.includes('pdf')) show = false;
+        }
+
+        // Include Filter
+        if (show && incTerm) {
+            if (incRegex) {
+                if (!incRegex.test(url)) show = false;
+            } else {
+                if (!url.toLowerCase().includes(incTerm.toLowerCase())) show = false;
+            }
+        }
+
+        // Exclude Filter
+        if (show && excTerm) {
+            if (excRegex) {
+                if (excRegex.test(url)) show = false;
+            } else {
+                if (url.toLowerCase().includes(excTerm.toLowerCase())) show = false;
+            }
+        }
+
+        // Search Term
+        if (show && searchTerm) {
+            if (!text.includes(searchTerm)) show = false;
+        }
+
+        if (show) {
+            r.style.display = '';
+            visible++;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+
+    const countEl = document.getElementById('visible-count');
+    if (countEl) countEl.textContent = visible;
+}
+
+function clearFilters() {
+    if (document.getElementById('table-search-input')) document.getElementById('table-search-input').value = '';
+    if (document.getElementById('include-filter-input')) document.getElementById('include-filter-input').value = '';
+    if (document.getElementById('exclude-filter-input')) document.getElementById('exclude-filter-input').value = '';
+    if (document.getElementById('content-type-filter')) document.getElementById('content-type-filter').value = 'all';
+    applyFiltersLive();
+}
+
+// On page load, auto-select Row 1 to populate Inspector and Right Panel immediately
+document.addEventListener('DOMContentLoaded', () => {
+    const firstRow = document.querySelector('#master-url-table tbody tr.url-row');
+    if (firstRow) {
+        const pid = firstRow.dataset.pageId;
+        selectPageRow(firstRow, parseInt(pid, 10));
+    }
+});
+
+// ==========================================
+// DRAGGABLE PANEL RESIZING LOGIC
+// ==========================================
+(function initDraggablePanels() {
+    // 1. Bottom Inspector Vertical Resizer
+    const inspResizer = document.getElementById('inspector-resizer');
+    const inspContainer = document.getElementById('inspector-container');
+
+    if (inspResizer && inspContainer) {
+        // Restore persisted height from localStorage
+        const savedHeight = localStorage.getItem('spider_inspector_height');
+        if (savedHeight) {
+            inspContainer.style.height = savedHeight + 'px';
+        }
+
+        let isDraggingInsp = false;
+        let startY = 0;
+        let startH = 0;
+
+        inspResizer.addEventListener('mousedown', (e) => {
+            isDraggingInsp = true;
+            startY = e.clientY;
+            startH = inspContainer.offsetHeight;
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'row-resize';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingInsp) return;
+            const dy = startY - e.clientY; // dragging UP increases bottom panel height
+            let newH = startH + dy;
+            const minH = 120;
+            const maxH = Math.round(window.innerHeight * 0.75);
+            if (newH < minH) newH = minH;
+            if (newH > maxH) newH = maxH;
+            inspContainer.style.height = newH + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDraggingInsp) {
+                isDraggingInsp = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                localStorage.setItem('spider_inspector_height', inspContainer.offsetHeight);
+            }
+        });
+    }
+
+    // 2. Right Sidebar Horizontal Resizer
+    const sideResizer = document.getElementById('sidebar-resizer');
+    const sideContainer = document.getElementById('right-panel-container');
+
+    if (sideResizer && sideContainer) {
+        // Restore persisted width from localStorage
+        const savedWidth = localStorage.getItem('spider_sidebar_width');
+        if (savedWidth && window.innerWidth >= 1024) {
+            sideContainer.style.width = savedWidth + 'px';
+        }
+
+        let isDraggingSide = false;
+        let startX = 0;
+        let startW = 0;
+
+        sideResizer.addEventListener('mousedown', (e) => {
+            isDraggingSide = true;
+            startX = e.clientX;
+            startW = sideContainer.offsetWidth;
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'col-resize';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingSide) return;
+            const dx = startX - e.clientX; // dragging LEFT increases right sidebar width
+            let newW = startW + dx;
+            const minW = 240;
+            const maxW = Math.round(window.innerWidth * 0.60);
+            if (newW < minW) newW = minW;
+            if (newW > maxW) newW = maxW;
+            sideContainer.style.width = newW + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDraggingSide) {
+                isDraggingSide = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                localStorage.setItem('spider_sidebar_width', sideContainer.offsetWidth);
+            }
+        });
+    }
+})();
+
+</script>
+{% endblock %}

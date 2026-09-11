@@ -1,0 +1,1493 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full space-y-8 pb-16">
+
+    <!-- Dashboard Top Overview: Analytics on Left & Interactive Live Mobile View on Right -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Column: Header Summary Card & Top Priority Action Items (8 cols) -->
+        <div class="xl:col-span-8 space-y-6 min-w-0">
+            
+            <!-- SEOptimer Header Summary Card -->
+            <div id="header-seo-summary" class="bg-white rounded-lg border border-[#E5E0D8] p-6 md:p-8 shadow-xs">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-[#EDE9E1]">
+                    <div>
+                        <span class="text-xs font-mono font-semibold uppercase tracking-wider text-sage-800 bg-sage-100 px-2.5 py-1 rounded-md border border-sage-200">
+                            Comprehensive Audit Report
+                        </span>
+                        <h1 class="text-2xl md:text-3xl font-black text-slate-900 mt-2 break-all flex items-center gap-2">
+                            <a href="{{ audit.url }}" target="_blank" rel="noopener noreferrer" class="hover:text-sage-700 hover:underline">
+                                {{ audit.url }}
+                            </a>
+                        </h1>
+                        <p class="text-slate-500 text-sm mt-1 font-mono">
+                            Audited on {{ audit.started_at[:10] if audit.started_at else 'Today' }} • {{ total_pages }} Pages Crawled • {{ total_issues }} Total Findings
+                        </p>
+                    </div>
+
+                    <!-- Export Buttons -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <a href="/api/audit/{{ audit.id }}/export/docx" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Word (.docx)
+                        </a>
+                        <a href="/api/audit/{{ audit.id }}/export/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Excel (.xlsx)
+                        </a>
+                        <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            Print
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scores & Gauges Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-6 items-center">
+                    
+                    <!-- Dual Radial Circular Gauges -->
+                    <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        
+                        <!-- SEO Score Gauge -->
+                        <div class="flex flex-col items-center p-4 rounded-md bg-[#F8F6F1] border border-[#EDE9E1]">
+                            <div class="relative flex items-center justify-center" style="width: 140px; height: 140px;">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e2e8f0" stroke-width="8"></circle>
+                                    <circle cx="50" cy="50" r="40" fill="transparent" 
+                                        stroke="{% if seo_score > 80 %}#16a34a{% elif seo_score > 50 %}#ca8a04{% else %}#dc2626{% endif %}" 
+                                        stroke-width="8" 
+                                        stroke-dasharray="251.327" 
+                                        stroke-dashoffset="{{ 251.327 * (1 - (seo_score / 100)) }}" 
+                                        stroke-linecap="round" 
+                                        class="gauge-circle"></circle>
+                                </svg>
+                                <div class="absolute text-center flex flex-col items-center">
+                                    <span class="text-slate-500 text-[10px] uppercase font-mono font-bold tracking-wider">SEO Score</span>
+                                    <span class="text-2xl font-black font-mono {% if seo_score > 80 %}text-emerald-600{% elif seo_score > 50 %}text-amber-600{% else %}text-rose-600{% endif %}">
+                                        {{ seo_score }}/100
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-center text-slate-500 text-[11px] mt-2 pt-2 border-t border-[#E5E0D8] w-full font-mono">
+                                Top 100 sites: <strong class="text-slate-800">75%</strong>
+                            </div>
+                        </div>
+
+                        <!-- Content Quality Gauge -->
+                        <div class="flex flex-col items-center p-4 rounded-md bg-[#F8F6F1] border border-[#EDE9E1]">
+                            <div class="relative flex items-center justify-center" style="width: 140px; height: 140px;">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e2e8f0" stroke-width="8"></circle>
+                                    <circle cx="50" cy="50" r="40" fill="transparent" 
+                                        stroke="{% if ai_score > 80 %}#52796F{% elif ai_score > 50 %}#D4A343{% else %}#C53030{% endif %}" 
+                                        stroke-width="8" 
+                                        stroke-dasharray="251.327" 
+                                        stroke-dashoffset="{{ 251.327 * (1 - (ai_score / 100)) }}" 
+                                        stroke-linecap="round" 
+                                        class="gauge-circle"></circle>
+                                </svg>
+                                <div class="absolute text-center flex flex-col items-center">
+                                    <span class="text-slate-500 text-[10px] uppercase font-mono font-bold tracking-wider">Page Quality</span>
+                                    <span class="text-2xl font-black font-mono {% if ai_score > 80 %}text-emerald-600{% elif ai_score > 50 %}text-amber-600{% else %}text-rose-600{% endif %}">
+                                        {{ ai_score }}/100
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-center text-slate-500 text-[11px] mt-2 pt-2 border-t border-[#E5E0D8] w-full font-mono">
+                                Topical depth & intent
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Pass / Fail Summary Progress Bars -->
+                    <div class="lg:col-span-6 space-y-3.5">
+                        <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">
+                            Your website scored <strong class="text-slate-900 font-bold font-mono">{{ seo_score }}/100</strong>.
+                            We analyzed <strong class="text-slate-900 font-bold font-mono">{{ total_pages }} pages</strong> and discovered 
+                            <strong class="text-slate-900 font-bold font-mono">{{ total_failed }} critical issues</strong> and 
+                            <strong class="text-slate-900 font-bold font-mono">{{ total_warnings }} warnings</strong> to address.
+                        </p>
+
+                        {% set total_tests_sum = total_failed + total_warnings + total_passed %}
+                        <div class="space-y-2.5 pt-1">
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-mono mb-1">
+                                    <span class="font-bold text-rose-700 uppercase flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        {{ total_failed }} Critical Issues
+                                    </span>
+                                    <span class="text-slate-500 font-semibold">{{ "%.0f"|format((total_failed / total_tests_sum) * 100) if total_tests_sum > 0 else 0 }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="h-full bg-rose-500 rounded-full transition-all duration-500" style="width: {{ (total_failed / total_tests_sum) * 100 if total_tests_sum > 0 else 0 }}%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-mono mb-1">
+                                    <span class="font-bold text-amber-700 uppercase flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        {{ total_warnings }} Warnings
+                                    </span>
+                                    <span class="text-slate-500 font-semibold">{{ "%.0f"|format((total_warnings / total_tests_sum) * 100) if total_tests_sum > 0 else 0 }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: {{ (total_warnings / total_tests_sum) * 100 if total_tests_sum > 0 else 0 }}%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-mono mb-1">
+                                    <span class="font-bold text-emerald-700 uppercase flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        {{ total_passed }} Tests Passed
+                                    </span>
+                                    <span class="text-slate-500 font-semibold">{{ "%.0f"|format((total_passed / total_tests_sum) * 100) if total_tests_sum > 0 else 0 }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: {{ (total_passed / total_tests_sum) * 100 if total_tests_sum > 0 else 0 }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- SEOptimer Priority "Issues to Fix" Scrollbox -->
+            {% if priority_issues %}
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs">
+                <div class="flex justify-between items-center pb-4 border-b border-[#EDE9E1]">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            Top Priority Action Items
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">High and medium impact issues requiring immediate technical remediation.</p>
+                    </div>
+                    <span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                        {{ priority_issues|length }} Issues
+                    </span>
+                </div>
+
+                <div class="space-y-2.5 max-h-[300px] overflow-y-auto mt-4 pr-1">
+                    {% for issue in priority_issues %}
+                    <div class="flex items-start gap-3 p-3.5 bg-[#F8F6F1]/70 hover:bg-[#F8F6F1] rounded-md border border-[#E5E0D8]/80 transition-colors">
+                        {% if issue.priority == 'HIGH' %}
+                            <span class="shrink-0 w-16 text-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+                                HIGH
+                            </span>
+                        {% else %}
+                            <span class="shrink-0 w-16 text-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                                MED
+                            </span>
+                        {% endif %}
+
+                        <div class="text-xs text-slate-700 flex-1 leading-relaxed">
+                            <span class="font-bold text-slate-900 block mb-0.5">{{ issue.title }}</span>
+                            <span>{{ issue.message }}</span>
+                        </div>
+
+                        <a href="#{{ issue.test_id }}" class="shrink-0 text-xs font-bold text-sage-700 hover:text-sage-800 hover:underline font-mono inline-flex items-center gap-1 self-center">
+                            Details →
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Right Column: Interactive Live Mobile Viewport Device (4 cols) -->
+        <div class="xl:col-span-4 xl:sticky xl:top-4 shrink-0 flex flex-col items-center w-full">
+            <div class="w-full max-w-[360px] bg-white rounded-lg border border-[#E5E0D8] p-4 shadow-sm">
+                <!-- Device Header & Mode Toggles -->
+                <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <h3 class="text-xs font-bold text-slate-800 font-mono uppercase tracking-wide">Live Mobile View</h3>
+                    </div>
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-mono font-semibold">
+                        <button type="button" onclick="setMobileMode('interactive')" id="btnMobInteractive" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-2xs transition-all cursor-pointer">Live</button>
+                        <button type="button" onclick="setMobileMode('snapshot')" id="btnMobSnapshot" class="px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all cursor-pointer">Snapshot</button>
+                    </div>
+                </div>
+
+                <!-- Smartphone Chassis Frame -->
+                <div class="mt-3 relative mx-auto rounded-lg bg-white p-2 border-2 border-[#D5CEBF] shadow-soft">
+                    <!-- Screen Area -->
+                    <div class="w-full h-[520px] rounded-md overflow-hidden bg-white relative flex flex-col border border-[#E5E0D8]">
+                        <!-- Browser Bar -->
+                        <div class="bg-slate-100 px-2.5 py-1.5 border-b border-[#E5E0D8] flex items-center gap-1.5 shrink-0">
+                            <div class="flex-1 flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-[#E5E0D8] text-[10px] text-slate-600 font-mono truncate">
+                                <svg class="w-3 h-3 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                                <span class="truncate">{{ audit.url }}</span>
+                            </div>
+                            <button type="button" onclick="reloadMobileFrame()" title="Reload Mobile Site" class="text-slate-500 hover:text-slate-900 p-1 rounded hover:bg-slate-200 transition-colors cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
+                            <a href="{{ audit.url }}" target="_blank" rel="noopener noreferrer" title="Open Site in New Tab" class="text-slate-500 hover:text-sage-700 p-1 rounded hover:bg-slate-200 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </div>
+
+                        <!-- Live Interactive Viewport -->
+                        <div id="mobInteractiveView" class="w-full flex-1 relative bg-white overflow-hidden">
+                            <iframe id="mobilePreviewFrame" src="/api/proxy/mobile-preview?url={{ audit.url }}" class="w-full h-full border-0" title="Live Mobile Website" loading="lazy"></iframe>
+                        </div>
+
+                        <!-- Captured Snapshot View -->
+                        <div id="mobSnapshotView" class="hidden w-full flex-1 overflow-y-auto bg-[#F8F6F1]">
+                            {% if screenshot_mobile %}
+                            <img src="{{ screenshot_mobile }}" alt="Mobile Screenshot" class="w-full h-auto object-cover object-top block" loading="lazy">
+                            {% else %}
+                            <div class="p-8 text-center text-slate-400 font-mono text-xs">
+                                No screenshot captured yet.
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Home Bar -->
+                        <div class="h-3.5 bg-white border-t border-[#EDE9E1] flex items-center justify-center shrink-0">
+                            <div class="w-20 h-1 bg-slate-300 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer with Resolution & Launch Link -->
+                <div class="flex items-center justify-between mt-3 text-[11px] font-mono text-slate-400 px-1">
+                    <span>Viewport: 390 × 844 px</span>
+                    <a href="{{ audit.url }}" target="_blank" rel="noopener noreferrer" class="text-sage-700 font-bold hover:underline">
+                        Access Website ↗
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- Executive Audit Overview Suite: 6 Core Modules                -->
+    <!-- ============================================================= -->
+    {% if executive_overview %}
+    <div id="executive-overview-suite" class="space-y-4 pt-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-[#E5E0D8]">
+            <div>
+                <h2 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Executive Audit Overview
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">High-level architectural, crawl, indexing, issue, performance, and technology synthesis.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-mono text-slate-600 font-semibold bg-slate-100 px-3 py-1 rounded-lg border border-[#E5E0D8]">
+                    6 Core Modules Active
+                </span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+            <!-- Card 1: Site Information -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">🌐</span>
+                            Site Information
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                            {{ executive_overview.site_info.protocol }}
+                        </span>
+                    </div>
+
+                    <div class="divide-y divide-[#EDE9E1] text-xs mt-2">
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Domain</span>
+                            <span class="font-mono font-bold text-slate-900 truncate max-w-[190px]" title="{{ executive_overview.site_info.domain }}">{{ executive_overview.site_info.domain }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Protocol</span>
+                            <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{{ executive_overview.site_info.protocol }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Crawl Date/Time</span>
+                            <span class="font-mono text-slate-700">{{ executive_overview.site_info.crawl_datetime }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Crawl Duration</span>
+                            <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ executive_overview.site_info.crawl_duration }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Total URLs Discovered</span>
+                            <span class="font-mono font-bold text-slate-900">{{ executive_overview.site_info.total_discovered }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Total URLs Crawled</span>
+                            <span class="font-mono font-bold text-sage-800 bg-sage-100 px-2 py-0.5 rounded border border-sage-200">{{ executive_overview.site_info.total_crawled }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Crawl Depth</span>
+                            <span class="font-mono font-bold text-slate-700">Level {{ executive_overview.site_info.crawl_depth }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Crawl Scope</span>
+                            <span class="font-mono text-slate-700">{{ executive_overview.site_info.crawl_scope }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Sitemap URLs</span>
+                            <span class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{{ executive_overview.site_info.sitemap_urls }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500 font-medium">Robots.txt Status</span>
+                            <span class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {{ executive_overview.site_info.robots_txt_status }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: URL Summary -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">🔗</span>
+                            URL Summary
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold border border-[#E5E0D8]">
+                            {{ executive_overview.site_info.total_crawled }} Pages
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2.5 mt-3">
+                        <div class="p-2.5 rounded-md bg-emerald-50/70 border border-emerald-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-emerald-800 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                200 URLs
+                            </span>
+                            <span class="text-xl font-black font-mono text-emerald-700 mt-1">{{ executive_overview.url_summary.urls_200 }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-blue-50/70 border border-blue-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-blue-800 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                3xx URLs
+                            </span>
+                            <span class="text-xl font-black font-mono text-blue-700 mt-1">{{ executive_overview.url_summary.urls_3xx }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-amber-50/70 border border-amber-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-amber-800 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                4xx URLs
+                            </span>
+                            <span class="text-xl font-black font-mono {% if executive_overview.url_summary.urls_4xx > 0 %}text-amber-700{% else %}text-slate-400{% endif %} mt-1">{{ executive_overview.url_summary.urls_4xx }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-rose-50/70 border border-rose-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-rose-800 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                5xx URLs
+                            </span>
+                            <span class="text-xl font-black font-mono {% if executive_overview.url_summary.urls_5xx > 0 %}text-rose-700{% else %}text-slate-400{% endif %} mt-1">{{ executive_overview.url_summary.urls_5xx }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-[#F8F6F1] border border-[#E5E0D8] flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-slate-600">Blocked URLs</span>
+                            <span class="text-base font-bold font-mono text-slate-800 mt-0.5">{{ executive_overview.url_summary.blocked_urls }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-purple-50/70 border border-purple-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-purple-800">Noindex URLs</span>
+                            <span class="text-base font-bold font-mono text-purple-700 mt-0.5">{{ executive_overview.url_summary.noindex_urls }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-indigo-50/70 border border-indigo-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-indigo-800">Canonicalized</span>
+                            <span class="text-base font-bold font-mono text-indigo-700 mt-0.5">{{ executive_overview.url_summary.canonicalized_urls }}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-md bg-amber-50/70 border border-amber-200/80 flex flex-col">
+                            <span class="text-[10px] uppercase font-mono font-bold text-amber-800">Orphan URLs</span>
+                            <span class="text-base font-bold font-mono text-amber-700 mt-0.5">{{ executive_overview.url_summary.orphan_urls }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-[#EDE9E1] mt-3 flex justify-between items-center text-xs">
+                    <span class="text-slate-500">Filter crawled URLs</span>
+                    <a href="/audit/{{ audit.id }}/pages" class="text-sage-700 hover:text-sage-800 font-bold font-mono">
+                        View Crawled Pages →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 3: Issue Summary -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs">⚠️</span>
+                            Issue Summary
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold border border-rose-200">
+                            {{ executive_overview.issue_summary.total }} Issues
+                        </span>
+                    </div>
+
+                    <div class="space-y-2.5 mt-3 text-xs">
+                        {% set issue_total = executive_overview.issue_summary.total | default(0) %}
+                        <div>
+                            <div class="flex justify-between items-center font-mono mb-1">
+                                <span class="font-bold text-rose-700 uppercase flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-rose-600"></span>
+                                    Critical
+                                </span>
+                                <span class="font-bold text-rose-700">{{ executive_overview.issue_summary.critical }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-full bg-rose-600 rounded-full" style="width: {{ (executive_overview.issue_summary.critical / issue_total * 100) if issue_total > 0 else 0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center font-mono mb-1">
+                                <span class="font-bold text-sage-800 uppercase flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-sage-600"></span>
+                                    High
+                                </span>
+                                <span class="font-bold text-sage-800">{{ executive_overview.issue_summary.high }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-full bg-sage-600 rounded-full" style="width: {{ (executive_overview.issue_summary.high / issue_total * 100) if issue_total > 0 else 0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center font-mono mb-1">
+                                <span class="font-bold text-amber-700 uppercase flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                    Medium
+                                </span>
+                                <span class="font-bold text-amber-700">{{ executive_overview.issue_summary.medium }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-full bg-amber-500 rounded-full" style="width: {{ (executive_overview.issue_summary.medium / issue_total * 100) if issue_total > 0 else 0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center font-mono mb-1">
+                                <span class="font-bold text-blue-700 uppercase flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    Low
+                                </span>
+                                <span class="font-bold text-blue-700">{{ executive_overview.issue_summary.low }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-full bg-blue-500 rounded-full" style="width: {{ (executive_overview.issue_summary.low / issue_total * 100) if issue_total > 0 else 0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center font-mono mb-1">
+                                <span class="font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                                    Informational
+                                </span>
+                                <span class="font-bold text-slate-700">{{ executive_overview.issue_summary.informational }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-full bg-slate-400 rounded-full" style="width: {{ (executive_overview.issue_summary.informational / issue_total * 100) if issue_total > 0 else 0 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-[#EDE9E1] mt-3 flex justify-between items-center text-xs">
+                    <span class="text-slate-500">Severity analysis</span>
+                    <a href="/audit/{{ audit.id }}/issues" class="text-sage-700 hover:text-sage-800 font-bold font-mono">
+                        Explore All Issues →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 4: SEO Summary Matrix -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-orange-50 text-sage-700 flex items-center justify-center font-bold text-xs">📊</span>
+                            SEO Summary
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-orange-50 text-sage-800 font-bold border border-sage-200">
+                            13 Health Checks
+                        </span>
+                    </div>
+
+                    <div class="divide-y divide-[#EDE9E1] text-xs mt-2 max-h-[310px] overflow-y-auto pr-1">
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Missing titles</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.missing_titles > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.missing_titles }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Duplicate titles</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.duplicate_titles > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.duplicate_titles }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Missing descriptions</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.missing_descriptions > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.missing_descriptions }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Duplicate descriptions</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.duplicate_descriptions > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.duplicate_descriptions }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Missing H1</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.missing_h1 > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.missing_h1 }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Duplicate H1</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.duplicate_h1 > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.duplicate_h1 }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Missing ALT</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.missing_alt > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.missing_alt }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Broken links</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.broken_links > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.broken_links }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Redirect chains</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.redirect_chains > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.redirect_chains }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Canonical issues</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.canonical_issues > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.canonical_issues }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Schema issues</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.schema_issues > 0 %}bg-amber-100 text-amber-800 border border-amber-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.schema_issues }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Sitemap issues</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.sitemap_issues > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.sitemap_issues }}
+                            </span>
+                        </div>
+                        <div class="py-1.5 flex items-center justify-between">
+                            <span class="text-slate-600">Robots issues</span>
+                            <span class="font-mono font-bold px-2 py-0.2 rounded text-[11px] {% if executive_overview.seo_summary.robots_issues > 0 %}bg-rose-100 text-rose-800 border border-rose-200{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                                {{ executive_overview.seo_summary.robots_issues }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 5: Performance & Core Web Vitals -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold text-xs">⚡</span>
+                            Performance
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full font-bold {% if executive_overview.performance.perf_score >= 80 %}bg-emerald-50 text-emerald-700 border border-emerald-200{% elif executive_overview.performance.perf_score >= 50 %}bg-amber-50 text-amber-700 border border-amber-200{% else %}bg-rose-50 text-rose-700 border border-rose-200{% endif %}">
+                            Score: {{ executive_overview.performance.perf_score }}/100
+                        </span>
+                    </div>
+
+                    <!-- Dual Device Score Badges -->
+                    <div class="grid grid-cols-2 gap-3 mt-3">
+                        <div class="p-3 rounded-md bg-[#F8F6F1] border border-[#E5E0D8] text-center">
+                            <span class="text-[10px] font-mono font-bold uppercase text-slate-500 block">Desktop Score</span>
+                            <span class="text-xl font-black font-mono mt-0.5 block {% if executive_overview.performance.desktop_score >= 80 %}text-emerald-600{% elif executive_overview.performance.desktop_score >= 50 %}text-amber-600{% else %}text-rose-600{% endif %}">
+                                {{ executive_overview.performance.desktop_score }}<span class="text-xs text-slate-400 font-normal">/100</span>
+                            </span>
+                        </div>
+
+                        <div class="p-3 rounded-md bg-[#F8F6F1] border border-[#E5E0D8] text-center">
+                            <span class="text-[10px] font-mono font-bold uppercase text-slate-500 block">Mobile Score</span>
+                            <span class="text-xl font-black font-mono mt-0.5 block {% if executive_overview.performance.mobile_score >= 80 %}text-emerald-600{% elif executive_overview.performance.mobile_score >= 50 %}text-amber-600{% else %}text-rose-600{% endif %}">
+                                {{ executive_overview.performance.mobile_score }}<span class="text-xs text-slate-400 font-normal">/100</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Core Web Vitals Key Metrics -->
+                    <div class="divide-y divide-[#EDE9E1] text-xs mt-3">
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500">Average LCP</span>
+                            <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ executive_overview.performance.avg_lcp }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500">Average INP</span>
+                            <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ executive_overview.performance.avg_inp }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500">Average CLS</span>
+                            <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ executive_overview.performance.avg_cls }}</span>
+                        </div>
+                        <div class="py-2 flex items-center justify-between">
+                            <span class="text-slate-500">Average TTFB</span>
+                            <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ executive_overview.performance.avg_ttfb }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-[#EDE9E1] mt-3 flex justify-between items-center text-xs">
+                    <span class="text-slate-500">CWV Diagnostic Suite</span>
+                    <a href="/audit/{{ audit.id }}/performance" class="text-sage-700 hover:text-sage-800 font-bold font-mono">
+                        Speed & CWV Details →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Card 6: Technology Stack -->
+            <div class="bg-white rounded-lg border border-[#E5E0D8] p-5 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#EDE9E1]">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs">⚙️</span>
+                            Technology
+                        </h3>
+                        <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-bold border border-purple-200">
+                            Stack Detect
+                        </span>
+                    </div>
+
+                    <div class="space-y-2.5 mt-3 text-xs">
+                        <!-- CMS -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">CMS</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.cms %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% else %}
+                                <span class="text-slate-400 font-mono">None detected</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Framework -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">Framework</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.framework %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% else %}
+                                <span class="text-slate-400 font-mono">None detected</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Server -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">Server</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.server %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-[#E5E0D8] font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- CDN -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">CDN</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.cdn %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-cyan-100 text-cyan-900 border border-cyan-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Analytics -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">Analytics</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.analytics %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Tag Manager -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">Tag manager</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.tag_manager %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Marketing Trackers -->
+                        <div>
+                            <span class="text-slate-500 text-[11px] block mb-1 font-medium">Marketing trackers</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for item in executive_overview.technology.marketing_trackers %}
+                                <span class="px-2.5 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200 font-mono font-bold text-[11px]">
+                                    {{ item }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sticky In-Page Category Navigation Bar -->
+    <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-md rounded-md border border-[#E5E0D8] p-2 shadow-xs flex items-center gap-2 overflow-x-auto select-none">
+        {% for cat_key, cat in categories.items() %}
+        <a href="#{{ cat.id }}" class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors flex items-center gap-2">
+            <span>{{ cat.title }}</span>
+            <span class="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full {% if cat.failed_count > 0 %}bg-rose-100 text-rose-700{% elif cat.warning_count > 0 %}bg-amber-100 text-amber-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                {{ cat.score }}%
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Structured Test Category Sections -->
+    {% for cat_key, cat in categories.items() %}
+    <div id="{{ cat.id }}" class="bg-white rounded-lg border border-[#E5E0D8] overflow-hidden shadow-xs scroll-mt-20">
+        
+        <!-- Category Banner Header -->
+        <div class="px-6 py-5 border-b border-[#EDE9E1] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-xl font-bold text-slate-900 tracking-tight">{{ cat.title }}</h3>
+                {% if cat.description and cat.id != 'mobile-usability' %}
+                <p class="text-xs text-slate-500 mt-0.5">{{ cat.description }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Category Metrics Mini-bar with SEOptimer Indicator Bars -->
+            <div class="flex items-center gap-5 sm:gap-6 text-xs sm:text-sm font-sans shrink-0">
+                <div class="flex flex-col items-start min-w-[65px]">
+                    <span class="text-slate-600">Score: <strong class="{% if cat.score >= 80 %}text-emerald-600{% elif cat.score >= 50 %}text-amber-600{% else %}text-rose-600{% endif %} font-bold font-mono">{{ cat.score }}</strong></span>
+                    <div class="w-full h-1 rounded-full {% if cat.score >= 80 %}bg-emerald-500{% elif cat.score >= 50 %}bg-amber-500{% else %}bg-rose-500{% endif %} mt-1.5"></div>
+                </div>
+                <div class="flex flex-col items-start min-w-[65px]">
+                    <span class="text-slate-600">Failed: <strong class="{% if cat.failed_count > 0 %}text-rose-600{% else %}text-slate-800{% endif %} font-bold font-mono">{{ cat.failed_count }}</strong></span>
+                    <div class="w-full h-1 rounded-full {% if cat.failed_count > 0 %}bg-rose-500{% else %}bg-slate-200{% endif %} mt-1.5"></div>
+                </div>
+                <div class="flex flex-col items-start min-w-[65px]">
+                    <span class="text-slate-600">Warnings: <strong class="{% if cat.warning_count > 0 %}text-amber-600{% else %}text-slate-800{% endif %} font-bold font-mono">{{ cat.warning_count }}</strong></span>
+                    <div class="w-full h-1 rounded-full {% if cat.warning_count > 0 %}bg-amber-500{% else %}bg-slate-200{% endif %} mt-1.5"></div>
+                </div>
+                <div class="flex flex-col items-start min-w-[65px]">
+                    <span class="text-slate-600">Passed: <strong class="{% if cat.passed_count > 0 %}text-emerald-600{% else %}text-slate-800{% endif %} font-bold font-mono">{{ cat.passed_count }}</strong></span>
+                    <div class="w-full h-1 rounded-full {% if cat.passed_count > 0 %}bg-emerald-500{% else %}bg-slate-200{% endif %} mt-1.5"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Test Cards -->
+        <div class="divide-y divide-[#EDE9E1]">
+            {% for test in cat.tests %}
+            <div id="{{ test.id }}" class="p-6 scroll-mt-24 hover:bg-[#F8F6F1]/40 transition-colors">
+                <div class="flex flex-col md:flex-row items-start justify-between gap-6">
+                    
+                    <!-- Left Column: Icon + Name + Benchmark (28%) -->
+                    <div class="w-full md:w-[28%] shrink-0 space-y-2">
+                        <div class="flex items-start gap-2.5">
+                            <div class="mt-0.5 shrink-0">
+                                {% if test.icon_type == 'target' %}
+                                    <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                                {% elif test.status == 'passed' %}
+                                    <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                {% elif test.status == 'warning' %}
+                                    <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                                {% else %}
+                                    <svg class="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                                {% endif %}
+                            </div>
+                            <strong class="text-slate-900 text-sm font-bold leading-snug">{{ test.name }}</strong>
+                        </div>
+                        
+                        {% if test.benchmark %}
+                        <div class="pl-7">
+                            <span class="benchmark-badge font-sans">
+                                {{ test.benchmark }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Middle Column: Description + Evidence Box + Remediation (flex-1) -->
+                    <div class="w-full md:flex-1 space-y-3.5">
+                        {% if test.description %}
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            {{ test.description }}
+                        </p>
+                        {% endif %}
+
+                        <!-- Dynamic Data Box based on type -->
+                        {% if test.data_box.type == 'text_length' %}
+                        <div class="p-3.5 rounded-md text-xs font-mono {% if test.status == 'passed' %}bg-emerald-50 border-l-4 border-emerald-500 text-emerald-900{% elif test.status == 'warning' %}bg-amber-50 border-l-4 border-amber-500 text-amber-900{% else %}bg-rose-50 border-l-4 border-rose-500 text-rose-900{% endif %}">
+                            <div class="mb-1"><strong>{{ test.data_box.label }}: </strong><span class="font-sans break-all">{{ test.data_box.text }}</span></div>
+                            <div><strong>Length: </strong>{{ test.data_box.length }} characters</div>
+                        </div>
+
+                        {% elif test.data_box.type == 'google_preview' %}
+                        <div class="space-y-3 bg-[#F8F6F1] p-4 rounded-md border border-[#E5E0D8] font-sans">
+                            <span class="block text-[11px] font-bold text-slate-600 font-mono uppercase">Google Search Results Preview</span>
+                            <div class="max-w-[560px] bg-white border border-[#E5E0D8] rounded-lg p-3 shadow-xs serp-container">
+                                <span class="serp-url truncate block">{{ test.data_box.url }}</span>
+                                <span class="serp-title block truncate">{{ test.data_box.title }}</span>
+                                <span class="serp-desc block line-clamp-2 mt-0.5">{{ test.data_box.description }}</span>
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'headings_list' %}
+                        <div class="border border-[#E5E0D8] rounded-md overflow-hidden text-xs font-sans">
+                            <div class="bg-[#F8F6F1] px-3.5 py-2 font-bold text-slate-700 border-b border-[#E5E0D8] font-mono">
+                                Headings Hierarchy Sample
+                            </div>
+                            <div class="divide-y divide-[#EDE9E1] max-h-48 overflow-y-auto bg-white p-2 space-y-1">
+                                {% for h1 in test.data_box.h1s %}
+                                <div class="px-2 py-1 bg-orange-50/70 border border-sage-200 rounded text-orange-950 font-bold">
+                                    H1: {{ h1 }}
+                                </div>
+                                {% endfor %}
+                                {% for h2 in test.data_box.h2s %}
+                                <div class="px-2 py-1 text-slate-700 pl-4 border-l-2 border-[#E5E0D8]">
+                                    H2: {{ h2 }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'keywords_cloud' %}
+                        <div class="flex flex-wrap gap-1.5 p-3.5 bg-[#F8F6F1] rounded-md border border-[#E5E0D8]">
+                            {% for kw in test.data_box.keywords %}
+                            <span class="inline-flex items-center text-xs bg-white border border-[#E5E0D8] rounded-md overflow-hidden shadow-2xs">
+                                <span class="px-2 py-1 font-medium text-slate-800">{{ kw.word }}</span>
+                                <span class="px-1.5 py-1 bg-slate-100 text-slate-500 font-mono text-[10px] border-l border-[#E5E0D8]">{{ kw.count }}</span>
+                            </span>
+                            {% endfor %}
+                        </div>
+
+                        {% elif test.data_box.type == 'keywords_usage_table' %}
+                        <div class="border border-[#E5E0D8] rounded-md overflow-hidden text-xs">
+                            <div class="grid grid-cols-4 bg-[#F8F6F1] border-b border-[#E5E0D8] p-2.5 font-bold text-slate-700 font-mono">
+                                <div>Keyword</div>
+                                <div class="text-center">Title Tag</div>
+                                <div class="text-center">Meta Desc</div>
+                                <div class="text-center">Headings</div>
+                            </div>
+                            <div class="divide-y divide-[#EDE9E1] bg-white">
+                                {% for row in test.data_box.rows %}
+                                <div class="grid grid-cols-4 p-2.5 items-center font-sans">
+                                    <div class="font-bold text-slate-900 truncate">{{ row.keyword }}</div>
+                                    <div class="text-center">
+                                        {% if row.in_title %}<span class="text-emerald-600 font-bold">✔</span>{% else %}<span class="text-slate-300">✖</span>{% endif %}
+                                    </div>
+                                    <div class="text-center">
+                                        {% if row.in_desc %}<span class="text-emerald-600 font-bold">✔</span>{% else %}<span class="text-slate-300">✖</span>{% endif %}
+                                    </div>
+                                    <div class="text-center">
+                                        {% if row.in_headings %}<span class="text-emerald-600 font-bold">✔</span>{% else %}<span class="text-slate-300">✖</span>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'pagerank_table' %}
+                        <div class="border border-[#E5E0D8] rounded-md overflow-hidden text-xs">
+                            <div class="grid grid-cols-12 bg-[#F8F6F1] border-b border-[#E5E0D8] p-2.5 font-bold text-slate-700 font-mono">
+                                <div class="col-span-9">High Authority Page URL</div>
+                                <div class="col-span-3 text-right">PageRank Score</div>
+                            </div>
+                            <div class="divide-y divide-[#EDE9E1] bg-white">
+                                {% for pr_p in test.data_box.pages %}
+                                <div class="grid grid-cols-12 p-2.5 items-center">
+                                    <div class="col-span-9 truncate text-blue-600 font-mono">
+                                        <a href="{{ pr_p.url }}" target="_blank" class="hover:underline">{{ pr_p.url }}</a>
+                                    </div>
+                                    <div class="col-span-3 text-right font-mono font-bold text-slate-900">
+                                        {{ "%.1f"|format(pr_p.internal_pagerank * 100 or 0) }}/100
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'core_web_vitals' %}
+                        <div class="space-y-4 bg-[#F8F6F1] p-4 rounded-md border border-[#E5E0D8]">
+                            <!-- Device Switcher Pills -->
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="inline-flex rounded-lg p-1 bg-white border border-[#E5E0D8] shadow-2xs font-mono text-xs">
+                                    <button type="button" onclick="switchReportCWV('desktop')" id="btn-rep-cwv-desktop" class="px-3 py-1 rounded font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                        Desktop (1280x800)
+                                    </button>
+                                    <button type="button" onclick="switchReportCWV('mobile')" id="btn-rep-cwv-mobile" class="px-3 py-1 rounded font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                        Mobile (390x844)
+                                    </button>
+                                </div>
+                                <span id="rep-cwv-viewport" class="text-[11px] font-mono font-bold text-slate-500 bg-white px-2.5 py-1 rounded border border-[#E5E0D8]">
+                                    Viewport: {{ test.data_box.cwv.desktop.viewport }}
+                                </span>
+                            </div>
+
+                            <!-- Desktop View -->
+                            <div id="rep-cwv-view-desktop" class="space-y-3">
+                                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-center font-mono">
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">TTFB</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.desktop.ttfb.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.desktop.ttfb.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.desktop.ttfb.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.desktop.ttfb.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">FCP</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.desktop.fcp.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.desktop.fcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.desktop.fcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.desktop.fcp.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">LCP</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.desktop.lcp.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.desktop.lcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.desktop.lcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.desktop.lcp.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">CLS</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.desktop.cls.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.desktop.cls.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.desktop.cls.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.desktop.cls.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">Speed Index</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.desktop.speed_index.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.desktop.speed_index.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.desktop.speed_index.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.desktop.speed_index.status|upper }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mobile View (Hidden by default) -->
+                            <div id="rep-cwv-view-mobile" class="hidden space-y-3">
+                                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-center font-mono">
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">TTFB</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.mobile.ttfb.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.mobile.ttfb.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.mobile.ttfb.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.mobile.ttfb.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">FCP</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.mobile.fcp.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.mobile.fcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.mobile.fcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.mobile.fcp.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">LCP</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.mobile.lcp.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.mobile.lcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.mobile.lcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.mobile.lcp.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">CLS</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.mobile.cls.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.mobile.cls.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.mobile.cls.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.mobile.cls.status|upper }}</span>
+                                    </div>
+                                    <div class="bg-white p-2.5 rounded-lg border border-[#E5E0D8]">
+                                        <span class="block text-[10px] text-slate-400 uppercase">Speed Index</span>
+                                        <span class="text-sm font-bold text-slate-900">{{ test.data_box.cwv.mobile.speed_index.val }}</span>
+                                        <span class="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] rounded font-bold {% if test.data_box.cwv.mobile.speed_index.status == 'good' %}bg-emerald-100 text-emerald-800{% elif test.data_box.cwv.mobile.speed_index.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">{{ test.data_box.cwv.mobile.speed_index.status|upper }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'stat_pill' %}
+                        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-[#E5E0D8] text-xs font-mono">
+                            <span class="text-slate-500">{{ test.data_box.label }}:</span>
+                            <span class="font-bold text-slate-900">{{ test.data_box.value }}</span>
+                        </div>
+
+                        {% elif test.data_box.type == 'link_badge' %}
+                        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-[#E5E0D8] text-xs font-mono">
+                            <span class="text-slate-500">{{ test.data_box.label }}:</span>
+                            <a href="{{ test.data_box.url }}" target="_blank" class="font-bold text-blue-600 hover:underline">{{ test.data_box.url }}</a>
+                        </div>
+
+                        {% elif test.data_box.type == 'code_snippet' %}
+                        <div class="p-3.5 rounded-r-lg bg-[#f8fafc] border-l-4 border-emerald-500 font-mono text-xs md:text-sm text-slate-800 break-all select-all shadow-2xs">
+                            <code>{{ test.data_box.code }}</code>
+                        </div>
+
+                        {% elif test.data_box.type == 'mobile_snapshot' %}
+                        <div class="mt-1 flex justify-start">
+                            <div class="device-phone-white">
+                                <!-- Speaker & Camera Bezel -->
+                                <div class="w-16 h-3 bg-slate-100 rounded-full mx-auto mb-2 flex items-center justify-center gap-1.5">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                                    <div class="w-6 h-1 bg-slate-300 rounded-full"></div>
+                                </div>
+                                <!-- Phone Screen Area -->
+                                <div class="device-phone-screen">
+                                    {% if test.data_box.screenshot_url or screenshot_mobile %}
+                                        <img src="{{ test.data_box.screenshot_url or screenshot_mobile }}" alt="Mobile Snapshot" class="w-full h-auto object-cover object-top block" loading="lazy">
+                                    {% else %}
+                                        <!-- Responsive Wireframe Preview Fallback -->
+                                        <div class="p-4 space-y-3 bg-white min-h-[380px] font-sans">
+                                            <div class="flex items-center justify-between pb-2 border-b border-[#EDE9E1]">
+                                                <div class="w-5 h-3 bg-slate-200 rounded"></div>
+                                                <div class="w-16 h-3 bg-slate-200 rounded"></div>
+                                                <div class="w-3 h-3 bg-slate-200 rounded-full"></div>
+                                            </div>
+                                            <div class="w-full h-36 bg-gradient-to-br from-slate-50 to-slate-200 rounded-lg flex flex-col items-center justify-center text-center p-3">
+                                                <svg class="w-8 h-8 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                                <span class="text-[11px] font-mono text-slate-500 font-bold">Mobile Viewport</span>
+                                                <span class="text-[10px] text-slate-400 font-mono">390 × 844 px</span>
+                                            </div>
+                                            <div class="w-3/4 h-3 bg-slate-200 rounded"></div>
+                                            <div class="w-full h-2 bg-slate-100 rounded"></div>
+                                            <div class="w-5/6 h-2 bg-slate-100 rounded"></div>
+                                            <div class="w-full h-7 bg-sage-600 rounded-lg mt-3 flex items-center justify-center text-white text-[11px] font-bold shadow-2xs">Touch Action</div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <!-- Bottom Home Indicator Bar -->
+                                <div class="w-24 h-1 bg-slate-300 rounded-full mx-auto mt-2"></div>
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'simple_note' %}
+                        <!-- Clean text only -->
+
+                        {% elif test.data_box.type == 'url_canonicalization' %}
+                        <div class="mt-2.5 p-3 rounded-md bg-[#F8F6F1] border border-[#E5E0D8] text-xs font-mono">
+                            <div class="flex items-center flex-wrap gap-2 text-slate-700">
+                                <span class="text-emerald-600 font-bold">✔</span>
+                                <a href="{{ test.data_box.url_non_www }}" target="_blank" class="text-blue-600 hover:underline">{{ test.data_box.url_non_www }}</a>
+                                <span class="text-slate-400">and</span>
+                                <a href="{{ test.data_box.url_www }}" target="_blank" class="text-blue-600 hover:underline">{{ test.data_box.url_www }}</a>
+                                <span class="text-slate-600 font-sans">resolve to the same URL.</span>
+                            </div>
+                        </div>
+
+                        {% elif test.data_box.type == 'ssl_certificate_chain' %}
+                        <div class="space-y-4 mt-2">
+                            <!-- 6 Validation Checklist Items -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700 font-sans">
+                                {% for item in test.data_box.checklist %}
+                                <div class="flex items-start gap-2 bg-[#F8F6F1]/70 p-2.5 rounded-lg border border-[#E5E0D8]/60">
+                                    {% if item.passed %}
+                                    <svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                    {% else %}
+                                    <svg class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                                    {% endif %}
+                                    <span>{{ item.text }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Certificate Chain Container -->
+                            {% if test.data_box.server_cert %}
+                            <div class="border border-[#E5E0D8] rounded-md overflow-hidden bg-[#F8F6F1]/40">
+                                <div class="bg-slate-100/90 px-4 py-2.5 text-xs font-bold text-slate-800 border-b border-[#E5E0D8] font-mono">
+                                    Certificate Chain:
+                                </div>
+                                <div class="p-4 space-y-4 text-xs font-sans divide-y divide-[#E5E0D8]/70">
+                                    
+                                    <!-- Server Certificate -->
+                                    <div class="space-y-2 first:pt-0">
+                                        <span class="font-bold text-slate-900 block text-xs uppercase tracking-wide font-mono text-emerald-700">Server certificate</span>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 font-mono text-[11px] bg-white p-3 rounded-lg border border-[#E5E0D8]">
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Common Name</span><strong class="text-slate-900 font-mono text-xs">{{ test.data_box.server_cert.common_name }}</strong></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Subject Alternative Names</span><span class="text-slate-800 font-mono text-xs">{{ test.data_box.server_cert.sans }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Not Valid Before</span><span>{{ test.data_box.server_cert.not_before }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Not Valid After</span><span>{{ test.data_box.server_cert.not_after }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Signature Algorithm</span><span>{{ test.data_box.server_cert.signature_algorithm }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Issuer</span><strong class="text-slate-800">{{ test.data_box.server_cert.issuer }}</strong></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Intermediate Certificate -->
+                                    {% if test.data_box.intermediate_cert %}
+                                    <div class="pt-3 space-y-2">
+                                        <span class="font-bold text-slate-900 block text-xs uppercase tracking-wide font-mono text-blue-700">Intermediate certificate</span>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 font-mono text-[11px] bg-white p-3 rounded-lg border border-[#E5E0D8]">
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Common Name</span><strong class="text-slate-900 font-mono text-xs">{{ test.data_box.intermediate_cert.common_name }}</strong></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Organization</span><span class="text-slate-800">{{ test.data_box.intermediate_cert.organization }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Location</span><span>{{ test.data_box.intermediate_cert.location }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Signature Algorithm</span><span>{{ test.data_box.intermediate_cert.signature_algorithm }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Issuer</span><strong class="text-slate-800">{{ test.data_box.intermediate_cert.issuer }}</strong></div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Root Certificate -->
+                                    {% if test.data_box.root_cert %}
+                                    <div class="pt-3 space-y-2">
+                                        <span class="font-bold text-slate-900 block text-xs uppercase tracking-wide font-mono text-slate-700">Root certificate</span>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 font-mono text-[11px] bg-white p-3 rounded-lg border border-[#E5E0D8]">
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Common Name</span><strong class="text-slate-900 font-mono text-xs">{{ test.data_box.root_cert.common_name }}</strong></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Organization</span><span class="text-slate-800">{{ test.data_box.root_cert.organization }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Location</span><span>{{ test.data_box.root_cert.location }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Signature Algorithm</span><span>{{ test.data_box.root_cert.signature_algorithm }}</span></div>
+                                            <div><span class="text-slate-400 font-sans block text-[10px] uppercase">Issuer</span><strong class="text-slate-800">{{ test.data_box.root_cert.issuer }}</strong></div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% elif test.data_box.type == 'unsafe_links_list' %}
+                        {% if test.data_box.links %}
+                        <div class="mt-2.5">
+                            <details class="group rounded-md border border-rose-200 bg-rose-50/40 overflow-hidden text-xs">
+                                <summary class="px-3.5 py-2 font-bold text-rose-700 cursor-pointer hover:bg-rose-100/50 flex items-center justify-between select-none">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        See results list ({{ test.data_box.count }} unsafe links)
+                                    </span>
+                                    <svg class="w-4 h-4 text-rose-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </summary>
+                                <div class="p-3 divide-y divide-rose-100 bg-white max-h-48 overflow-y-auto">
+                                    {% for ulink in test.data_box.links %}
+                                    <div class="py-2 first:pt-0 last:pb-0 space-y-0.5">
+                                        <div class="text-slate-900 font-bold truncate">{{ ulink.text }}</div>
+                                        <div class="text-blue-600 font-mono text-[11px] truncate">
+                                            <a href="{{ ulink.href }}" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ ulink.href }}</a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        </div>
+                        {% endif %}
+
+                        {% elif test.data_box.type == 'collapsible_results_list' %}
+                        <div class="mt-1">
+                            <details class="group text-xs">
+                                <summary class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold cursor-pointer select-none">
+                                    <span class="group-open:rotate-90 transition-transform text-[10px]">▶</span>
+                                    <span>See results list</span>
+                                </summary>
+                                <div class="mt-2.5 p-3 rounded-md bg-[#F8F6F1] border border-[#E5E0D8] max-h-48 overflow-y-auto space-y-1.5 font-mono text-[11px] text-slate-700">
+                                    {% for item in test.data_box.list_items %}
+                                    <div class="truncate p-1.5 bg-white rounded border border-[#E5E0D8]/70">
+                                        {% if item is mapping %}
+                                            <span class="font-bold text-slate-900">{{ item.name }}:</span> {{ item.value }}
+                                        {% else %}
+                                            <a href="{{ item }}" target="_blank" rel="noopener noreferrer" class="hover:underline text-blue-600">{{ item }}</a>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        </div>
+
+                        {% elif test.data_box.type == 'page_objects_tables' %}
+                        <div class="space-y-6 mt-3 max-w-2xl">
+                            
+                            <!-- Table 1: Content size by content type -->
+                            <div class="rounded-md border border-[#E5E0D8] overflow-hidden bg-white shadow-2xs">
+                                <div class="px-4 py-2.5 bg-[#F8F6F1] border-b border-[#E5E0D8] text-xs font-bold text-slate-700 font-sans">
+                                    Content size by content type
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-[#F8F6F1]/50 text-[10px] font-mono uppercase text-slate-400 border-b border-[#EDE9E1]">
+                                            <tr>
+                                                <th class="px-4 py-2 font-semibold">Content Type</th>
+                                                <th class="px-4 py-2 font-semibold text-center">Percent</th>
+                                                <th class="px-4 py-2 font-semibold text-right">Size</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-[#EDE9E1] font-sans text-slate-700">
+                                            {% for row in test.data_box.tables.content_size_by_type %}
+                                            <tr class="hover:bg-[#F8F6F1]/60 transition-colors">
+                                                <td class="px-4 py-2.5 font-medium lowercase">{{ row.type }}</td>
+                                                <td class="px-4 py-2.5 text-center text-slate-500 font-mono">{{ row.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">{{ row.size }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot class="bg-[#F8F6F1] border-t-2 border-[#E5E0D8] font-bold text-slate-900 font-mono">
+                                            <tr>
+                                                <td class="px-4 py-2.5 uppercase font-bold">TOTAL</td>
+                                                <td class="px-4 py-2.5 text-center">{{ test.data_box.tables.content_size_by_type_total.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right">{{ test.data_box.tables.content_size_by_type_total.size }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Table 2: Requests by content type -->
+                            <div class="rounded-md border border-[#E5E0D8] overflow-hidden bg-white shadow-2xs">
+                                <div class="px-4 py-2.5 bg-[#F8F6F1] border-b border-[#E5E0D8] text-xs font-bold text-slate-700 font-sans">
+                                    Requests by content type
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-[#F8F6F1]/50 text-[10px] font-mono uppercase text-slate-400 border-b border-[#EDE9E1]">
+                                            <tr>
+                                                <th class="px-4 py-2 font-semibold">Content Type</th>
+                                                <th class="px-4 py-2 font-semibold text-center">Percent</th>
+                                                <th class="px-4 py-2 font-semibold text-right">Requests</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-[#EDE9E1] font-sans text-slate-700">
+                                            {% for row in test.data_box.tables.requests_by_type %}
+                                            <tr class="hover:bg-[#F8F6F1]/60 transition-colors">
+                                                <td class="px-4 py-2.5 font-medium lowercase">{{ row.type }}</td>
+                                                <td class="px-4 py-2.5 text-center text-slate-500 font-mono">{{ row.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">{{ row.requests }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot class="bg-[#F8F6F1] border-t-2 border-[#E5E0D8] font-bold text-slate-900 font-mono">
+                                            <tr>
+                                                <td class="px-4 py-2.5 uppercase font-bold">TOTAL</td>
+                                                <td class="px-4 py-2.5 text-center">{{ test.data_box.tables.requests_by_type_total.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right">{{ test.data_box.tables.requests_by_type_total.requests }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Table 3: Content size by domain -->
+                            <div class="rounded-md border border-[#E5E0D8] overflow-hidden bg-white shadow-2xs">
+                                <div class="px-4 py-2.5 bg-[#F8F6F1] border-b border-[#E5E0D8] text-xs font-bold text-slate-700 font-sans">
+                                    Content size by domain
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-[#F8F6F1]/50 text-[10px] font-mono uppercase text-slate-400 border-b border-[#EDE9E1]">
+                                            <tr>
+                                                <th class="px-4 py-2 font-semibold">Domain</th>
+                                                <th class="px-4 py-2 font-semibold text-center">Percent</th>
+                                                <th class="px-4 py-2 font-semibold text-right">Size</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-[#EDE9E1] font-mono text-slate-700 text-[11px]">
+                                            {% for row in test.data_box.tables.content_size_by_domain %}
+                                            <tr class="hover:bg-[#F8F6F1]/60 transition-colors">
+                                                <td class="px-4 py-2.5 truncate max-w-[240px] text-slate-800">{{ row.domain }}</td>
+                                                <td class="px-4 py-2.5 text-center text-slate-500">{{ row.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right font-semibold text-slate-900">{{ row.size }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot class="bg-[#F8F6F1] border-t-2 border-[#E5E0D8] font-bold text-slate-900 font-mono text-xs">
+                                            <tr>
+                                                <td class="px-4 py-2.5 uppercase font-bold">TOTAL</td>
+                                                <td class="px-4 py-2.5 text-center">{{ test.data_box.tables.content_size_by_domain_total.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right">{{ test.data_box.tables.content_size_by_domain_total.size }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Table 4: Requests by domain -->
+                            <div class="rounded-md border border-[#E5E0D8] overflow-hidden bg-white shadow-2xs">
+                                <div class="px-4 py-2.5 bg-[#F8F6F1] border-b border-[#E5E0D8] text-xs font-bold text-slate-700 font-sans">
+                                    Requests by domain
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="bg-[#F8F6F1]/50 text-[10px] font-mono uppercase text-slate-400 border-b border-[#EDE9E1]">
+                                            <tr>
+                                                <th class="px-4 py-2 font-semibold">Domain</th>
+                                                <th class="px-4 py-2 font-semibold text-center">Percent</th>
+                                                <th class="px-4 py-2 font-semibold text-right">Requests</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-[#EDE9E1] font-mono text-slate-700 text-[11px]">
+                                            {% for row in test.data_box.tables.requests_by_domain %}
+                                            <tr class="hover:bg-[#F8F6F1]/60 transition-colors">
+                                                <td class="px-4 py-2.5 truncate max-w-[240px] text-slate-800">{{ row.domain }}</td>
+                                                <td class="px-4 py-2.5 text-center text-slate-500">{{ row.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right font-semibold text-slate-900">{{ row.requests }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot class="bg-[#F8F6F1] border-t-2 border-[#E5E0D8] font-bold text-slate-900 font-mono text-xs">
+                                            <tr>
+                                                <td class="px-4 py-2.5 uppercase font-bold">TOTAL</td>
+                                                <td class="px-4 py-2.5 text-center">{{ test.data_box.tables.requests_by_domain_total.percent }}</td>
+                                                <td class="px-4 py-2.5 text-right">{{ test.data_box.tables.requests_by_domain_total.requests }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                        {% endif %}
+
+                        <!-- SEOptimer Action Buttons & Remediation -->
+                        <div class="pt-1 flex flex-col items-start gap-2.5">
+                            {% if test.has_how_to_fix %}
+                            <button type="button" onclick="const det = document.getElementById('details-{{ test.id }}'); if(det) { det.open = !det.open; }" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-[#F8F6F1] text-slate-700 text-xs font-semibold rounded-md shadow-2xs transition-colors cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                                How to fix
+                            </button>
+                            {% endif %}
+
+                            <!-- Collapsible "How to Fix" Box -->
+                            <details id="details-{{ test.id }}" class="w-full group rounded-lg border border-[#E5E0D8] bg-[#F8F6F1]/60 transition-all text-xs">
+                                <summary class="px-3 py-2 font-semibold text-slate-700 cursor-pointer hover:text-slate-900 flex items-center justify-between select-none">
+                                    <span class="flex items-center gap-1.5 text-sage-700 font-bold">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Technical Recommendation
+                                    </span>
+                                    <svg class="w-3.5 h-3.5 text-slate-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </summary>
+                                <div class="p-3 border-t border-[#E5E0D8] bg-white text-slate-600 leading-relaxed">
+                                    {{ test.recommendation }}
+                                </div>
+                            </details>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column: Info icon (i) -->
+                    <div class="relative group self-start shrink-0 ml-auto md:ml-0">
+                        <button type="button" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors text-xs font-serif font-bold cursor-pointer" title="More information" onclick="const det = document.getElementById('details-{{ test.id }}'); if(det) det.open = !det.open;">
+                            i
+                        </button>
+                        <div class="hidden group-hover:block absolute right-0 top-7 z-30 w-72 p-3 bg-slate-900 text-white text-xs rounded-md shadow-xl font-sans leading-relaxed border border-slate-700 pointer-events-none">
+                            <span class="font-bold text-orange-400 block mb-1">Recommendation</span>
+                            {{ test.recommendation }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function switchScreenshot(mode) {
+        const desk = document.getElementById('shotDesktopContainer');
+        const mob = document.getElementById('shotMobileContainer');
+        const bDesk = document.getElementById('btnShotDesktop');
+        const bMob = document.getElementById('btnShotMobile');
+
+        if (mode === 'desktop') {
+            desk.classList.remove('hidden');
+            mob.classList.add('hidden');
+            bDesk.className = 'px-3 py-1 rounded-md bg-white shadow-xs text-slate-800 transition-all';
+            bMob.className = 'px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all';
+        } else {
+            desk.classList.add('hidden');
+            mob.classList.remove('hidden');
+            bMob.className = 'px-3 py-1 rounded-md bg-white shadow-xs text-slate-800 transition-all';
+            bDesk.className = 'px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all';
+        }
+    }
+
+    function switchReportCWV(device) {
+        const dView = document.getElementById('rep-cwv-view-desktop');
+        const mView = document.getElementById('rep-cwv-view-mobile');
+        const dBtn = document.getElementById('btn-rep-cwv-desktop');
+        const mBtn = document.getElementById('btn-rep-cwv-mobile');
+        const vpEl = document.getElementById('rep-cwv-viewport');
+
+        if (!dView || !mView) return;
+
+        if (device === 'desktop') {
+            dView.classList.remove('hidden');
+            mView.classList.add('hidden');
+            if (dBtn) dBtn.className = 'px-3 py-1 rounded font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5';
+            if (mBtn) mBtn.className = 'px-3 py-1 rounded font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+            if (vpEl) vpEl.textContent = 'Viewport: 1280 × 800 px';
+        } else {
+            mView.classList.remove('hidden');
+            dView.classList.add('hidden');
+            if (mBtn) mBtn.className = 'px-3 py-1 rounded font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5';
+            if (dBtn) dBtn.className = 'px-3 py-1 rounded font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+            if (vpEl) vpEl.textContent = 'Viewport: 390 × 844 px';
+        }
+    }
+
+    function setMobileMode(mode) {
+        const inter = document.getElementById('mobInteractiveView');
+        const snap = document.getElementById('mobSnapshotView');
+        const bInter = document.getElementById('btnMobInteractive');
+        const bSnap = document.getElementById('btnMobSnapshot');
+
+        if (!inter || !snap) return;
+
+        if (mode === 'interactive') {
+            inter.classList.remove('hidden');
+            snap.classList.add('hidden');
+            if (bInter) bInter.className = 'px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-2xs transition-all cursor-pointer';
+            if (bSnap) bSnap.className = 'px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all cursor-pointer';
+        } else {
+            inter.classList.add('hidden');
+            snap.classList.remove('hidden');
+            if (bSnap) bSnap.className = 'px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-2xs transition-all cursor-pointer';
+            if (bInter) bInter.className = 'px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all cursor-pointer';
+        }
+    }
+
+    function reloadMobileFrame() {
+        const f = document.getElementById('mobilePreviewFrame');
+        if (f) {
+            f.src = f.src;
+        }
+    }
+</script>
+{% endblock %}

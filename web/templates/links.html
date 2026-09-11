@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full space-y-6 pb-16">
+
+    <!-- Header & Metric Cards -->
+    <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-6 border-b border-[#EDE9E1]">
+            <div>
+                <span class="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                    Site Architecture
+                </span>
+                <h1 class="text-2xl font-black text-slate-900 mt-1">Internal Links Architecture</h1>
+                <p class="text-sm text-slate-500 mt-0.5">Audit internal navigation flow, discover broken links (4xx/5xx), redirected paths, and anchor text distribution.</p>
+            </div>
+
+            <!-- Severity Counters -->
+            <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold border border-[#E5E0D8]">
+                    Total Internal: {{ total_internal }}
+                </span>
+                <a href="/audit/{{ audit.id }}/links?status=broken" class="px-3 py-1.5 rounded-lg {% if broken_count > 0 %}bg-rose-100 text-rose-800 border-rose-300 font-black animate-pulse{% else %}bg-slate-100 text-slate-600 border-[#E5E0D8]{% endif %} border flex items-center gap-1.5 transition-colors">
+                    <span class="w-2 h-2 rounded-full {% if broken_count > 0 %}bg-rose-600{% else %}bg-slate-400{% endif %}"></span>
+                    {{ broken_count }} Broken Internal Links
+                </a>
+                <a href="/audit/{{ audit.id }}/links?status=redirects" class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 font-bold flex items-center gap-1.5 transition-colors">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    {{ redirect_count }} Redirects
+                </a>
+                <span class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 font-bold">
+                    {{ unique_targets }} Unique Targets
+                </span>
+            </div>
+        </div>
+
+        <!-- Filter Toolbar -->
+        <form id="links-filter-form" method="GET" class="pt-6 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                <!-- Status Filter -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Link Health Filter</label>
+                    <select name="status" class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500" onchange="this.form.submit()">
+                        <option value="all" {% if current_status == 'all' %}selected{% endif %}>All Internal Links ({{ total_internal }})</option>
+                        <option value="broken" {% if current_status == 'broken' %}selected{% endif %}>🚨 Broken Links Only ({{ broken_count }})</option>
+                        <option value="redirects" {% if current_status == 'redirects' %}selected{% endif %}>⚠️ Redirected Links ({{ redirect_count }})</option>
+                        <option value="200" {% if current_status == '200' %}selected{% endif %}>✓ 200 OK Links</option>
+                        <option value="nofollow" {% if current_status == 'nofollow' %}selected{% endif %}>Nofollow Links ({{ nofollow_count }})</option>
+                    </select>
+                </div>
+
+                <!-- Search Input -->
+                <div class="md:col-span-3">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">Search Target, Source, or Anchor</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" name="q" value="{{ search_query }}" placeholder="Filter by target URL, source URL, or anchor keyword..." class="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-300 focus:ring-emerald-500 focus:border-emerald-500">
+                        <button type="submit" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">Filter</button>
+                        <a href="/audit/{{ audit.id }}/links" title="Reset filters" class="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg border border-[#E5E0D8]">Reset</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Active Filter Notice -->
+    <div class="flex justify-between items-center text-xs text-slate-600 px-1 font-mono">
+        <div>
+            Showing <strong class="text-slate-900">{{ filtered_count }}</strong> internal link occurrences
+            {% if current_status != 'all' %}<span class="text-rose-600 font-bold ml-1">• Filter: {{ current_status|upper }}</span>{% endif %}
+            {% if search_query %}<span class="text-blue-600 font-bold ml-1">• Search: "{{ search_query }}"</span>{% endif %}
+        </div>
+    </div>
+
+    <!-- Links Table -->
+    <div class="bg-white rounded-lg border border-[#E5E0D8] shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs divide-y divide-slate-200">
+                <thead class="bg-[#F8F6F1] text-[11px] font-mono uppercase text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3.5 font-semibold">Status</th>
+                        <th class="px-5 py-3.5 font-semibold">Target Internal URL (Full)</th>
+                        <th class="px-5 py-3.5 font-semibold">Source Page (Found On)</th>
+                        <th class="px-5 py-3.5 font-semibold">Anchor Text</th>
+                        <th class="px-5 py-3.5 font-semibold text-center">Nofollow</th>
+                        <th class="px-5 py-3.5 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for link in links %}
+                    {% set is_broken = link.is_broken or (link.status_code and (link.status_code >= 400 or link.status_code == 0)) %}
+                    {% set is_redirect = link.status_code in (301, 302, 307, 308) %}
+                    <tr class="hover:bg-[#F8F6F1]/80 transition-colors {% if is_broken %}bg-rose-50/30{% endif %}">
+                        <!-- Status Badge -->
+                        <td class="px-5 py-4 whitespace-nowrap align-top">
+                            {% if is_broken %}
+                                <span class="px-2.5 py-1 inline-flex text-xs font-mono font-bold rounded-md bg-rose-100 text-rose-800 border border-rose-300">
+                                    🚨 {{ link.status_code or '404' }}
+                                </span>
+                            {% elif is_redirect %}
+                                <span class="px-2.5 py-1 inline-flex text-xs font-mono font-bold rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                                    {{ link.status_code }} Redirect
+                                </span>
+                            {% elif link.status_code == 200 %}
+                                <span class="px-2.5 py-1 inline-flex text-xs font-mono font-bold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    200 OK
+                                </span>
+                            {% else %}
+                                <span class="px-2.5 py-1 inline-flex text-xs font-mono font-bold rounded-md bg-slate-100 text-slate-700 border border-[#E5E0D8]">
+                                    {{ link.status_code or 'Internal' }}
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Target URL (Full Break-All) -->
+                        <td class="px-5 py-4 align-top font-mono text-xs text-slate-800 break-all max-w-sm">
+                            <div class="flex items-start gap-2">
+                                <span class="select-all {% if is_broken %}text-rose-700 font-bold{% endif %}">{{ link.target_url }}</span>
+                                <button type="button" onclick="copyText('{{ link.target_url }}', this)" title="Copy Target URL" class="shrink-0 p-1 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                </button>
+                            </div>
+                            {% if is_broken %}
+                            <div class="mt-1 text-[11px] font-sans text-rose-600 font-semibold flex items-center gap-1">
+                                <span>Broken link destination. Needs to be removed or updated!</span>
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Source Page (Full Break-All) -->
+                        <td class="px-5 py-4 align-top font-mono text-xs text-slate-600 break-all max-w-sm">
+                            <div class="flex items-start gap-2">
+                                <span class="select-all">{{ link.source_url }}</span>
+                                <button type="button" onclick="copyText('{{ link.source_url }}', this)" title="Copy Source URL" class="shrink-0 p-1 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+
+                        <!-- Anchor Text -->
+                        <td class="px-5 py-4 align-top text-xs max-w-xs">
+                            {% if link.anchor_text and link.anchor_text.strip() %}
+                                <span class="font-medium text-slate-800 bg-slate-100 px-2 py-1 rounded inline-block break-words">"{{ link.anchor_text }}"</span>
+                            {% else %}
+                                <span class="italic text-slate-400 font-mono text-[11px]">[No Anchor Text / Image]</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Nofollow -->
+                        <td class="px-5 py-4 whitespace-nowrap align-top text-center font-mono text-[11px]">
+                            {% if link.nofollow %}
+                                <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 font-bold">nofollow</span>
+                            {% else %}
+                                <span class="text-slate-400">follow</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-5 py-4 whitespace-nowrap align-top text-right space-x-1.5">
+                            {% if link.source_page_id %}
+                            <a href="/audit/{{ audit.id }}/page/{{ link.source_page_id }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 hover:bg-sage-100 font-semibold font-mono text-[11px] transition-colors" title="View source page analysis">
+                                Source Page →
+                            </a>
+                            {% endif %}
+                            <a href="{{ link.target_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold font-mono text-[11px] transition-colors" title="Open target URL">
+                                ↗
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="px-6 py-12 text-center text-slate-500 font-medium">No internal links match current filters.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="text-[10px] text-emerald-600 font-bold font-mono">✓</span>';
+        setTimeout(() => {
+            btn.innerHTML = origHTML;
+        }, 1500);
+    });
+}
+</script>
+{% endblock %}

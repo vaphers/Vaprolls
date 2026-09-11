@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full min-w-0 space-y-6">
+
+    <!-- Header Banner -->
+    <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-100 text-amber-800">PERFORMANCE &amp; VITALS</span>
+                <span class="text-xs text-slate-400 font-mono">{{ audit.url }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Page Speed &amp; Core Web Vitals</h1>
+            <p class="text-xs text-slate-500 mt-1">Dual-device performance simulation across Desktop and Mobile screen viewports.</p>
+        </div>
+
+        <!-- Quick Summary Stats -->
+        <div class="flex items-center gap-4 text-xs font-mono">
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] rounded-md px-4 py-2.5 text-center">
+                <span class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">AVG RESPONSE TIME</span>
+                <span class="text-xl font-bold {% if avg_response_time > 1000 %}text-rose-600{% elif avg_response_time > 500 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                    {{ "%.0f"|format(avg_response_time) }} <span class="text-xs font-normal text-slate-400">ms</span>
+                </span>
+            </div>
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] rounded-md px-4 py-2.5 text-center">
+                <span class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">PAGES ANALYZED</span>
+                <span class="text-xl font-bold text-slate-800">{{ slowest_pages|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Web Vitals Dual Device Section -->
+    {% if cwv %}
+    <div class="bg-white rounded-lg border border-[#E5E0D8] shadow-xs overflow-hidden">
+        <div class="px-6 py-4 border-b border-[#EDE9E1] bg-[#F8F6F1]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-sage-600"></span>
+                <h3 class="text-base font-bold text-slate-900">Core Web Vitals &amp; Diagnostics</h3>
+            </div>
+
+            <!-- Device Selector Pills & Viewport Indicator -->
+            <div class="flex items-center gap-3">
+                <span id="perf-cwv-viewport" class="text-xs font-mono font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-[#E5E0D8]">
+                    Viewport: {{ cwv.desktop.viewport }}
+                </span>
+                <div class="inline-flex rounded-lg p-1 bg-slate-200/70 font-mono text-xs">
+                    <button type="button" onclick="switchPerfCWV('desktop')" id="btn-perf-desktop" class="px-3 py-1 rounded-md font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        Desktop
+                    </button>
+                    <button type="button" onclick="switchPerfCWV('mobile')" id="btn-perf-mobile" class="px-3 py-1 rounded-md font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        Mobile
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Desktop View -->
+            <div id="perf-view-desktop" class="space-y-6">
+                <div class="flex flex-col md:flex-row items-center gap-6 p-4 rounded-md bg-[#F8F6F1] border border-[#E5E0D8]">
+                    <div class="flex items-center gap-4 shrink-0">
+                        <div class="w-16 h-16 rounded-lg flex items-center justify-center font-bold text-2xl font-mono {% if cwv.desktop.score >= 80 %}bg-emerald-500 text-white{% elif cwv.desktop.score >= 50 %}bg-amber-500 text-white{% else %}bg-rose-500 text-white{% endif %} shadow-xs">
+                            {{ cwv.desktop.score }}
+                        </div>
+                        <div>
+                            <div class="text-xs font-mono font-bold uppercase text-slate-400">DESKTOP PERFORMANCE SCORE</div>
+                            <div class="text-lg font-bold text-slate-900">
+                                {% if cwv.desktop.score >= 80 %}Fast &amp; Optimized{% elif cwv.desktop.score >= 50 %}Needs Optimization{% else %}Poor Performance{% endif %}
+                            </div>
+                            <div class="text-xs text-slate-500 font-mono mt-0.5">Viewport: {{ cwv.desktop.viewport_label }}</div>
+                        </div>
+                    </div>
+                    <div class="flex-1 text-xs text-slate-600 leading-relaxed border-t md:border-t-0 md:border-l border-[#E5E0D8] pt-3 md:pt-0 md:pl-6">
+                        Simulated on desktop workstation standard conditions (1280&times;800 px, high-bandwidth connection, fast desktop CPU). TTFB and paint timings reflect direct server response velocity and client-side rendering bottlenecks.
+                    </div>
+                </div>
+
+                <!-- 5 CWV Metric Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <!-- TTFB -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">TTFB</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.desktop.ttfb.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.desktop.ttfb.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.desktop.ttfb.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.desktop.ttfb.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Time to First Byte</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 0.8s</div>
+                    </div>
+
+                    <!-- FCP -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">FCP</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.desktop.fcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.desktop.fcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.desktop.fcp.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.desktop.fcp.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">First Contentful Paint</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 1.8s</div>
+                    </div>
+
+                    <!-- LCP -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">LCP</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.desktop.lcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.desktop.lcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.desktop.lcp.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.desktop.lcp.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Largest Contentful Paint</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 2.5s</div>
+                    </div>
+
+                    <!-- CLS -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">CLS</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.desktop.cls.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.desktop.cls.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.desktop.cls.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.desktop.cls.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Cumulative Layout Shift</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 0.1</div>
+                    </div>
+
+                    <!-- Speed Index -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">Speed Index</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.desktop.speed_index.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.desktop.speed_index.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.desktop.speed_index.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.desktop.speed_index.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Speed Index</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 3.4s</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile View (Hidden by default) -->
+            <div id="perf-view-mobile" class="hidden space-y-6">
+                <div class="flex flex-col md:flex-row items-center gap-6 p-4 rounded-md bg-[#F8F6F1] border border-[#E5E0D8]">
+                    <div class="flex items-center gap-4 shrink-0">
+                        <div class="w-16 h-16 rounded-lg flex items-center justify-center font-bold text-2xl font-mono {% if cwv.mobile.score >= 80 %}bg-emerald-500 text-white{% elif cwv.mobile.score >= 50 %}bg-amber-500 text-white{% else %}bg-rose-500 text-white{% endif %} shadow-xs">
+                            {{ cwv.mobile.score }}
+                        </div>
+                        <div>
+                            <div class="text-xs font-mono font-bold uppercase text-slate-400">MOBILE PERFORMANCE SCORE</div>
+                            <div class="text-lg font-bold text-slate-900">
+                                {% if cwv.mobile.score >= 80 %}Fast &amp; Optimized{% elif cwv.mobile.score >= 50 %}Needs Optimization{% else %}Poor Performance{% endif %}
+                            </div>
+                            <div class="text-xs text-slate-500 font-mono mt-0.5">Viewport: {{ cwv.mobile.viewport_label }}</div>
+                        </div>
+                    </div>
+                    <div class="flex-1 text-xs text-slate-600 leading-relaxed border-t md:border-t-0 md:border-l border-[#E5E0D8] pt-3 md:pt-0 md:pl-6">
+                        Simulated on smartphone device profile (390&times;844 px, 4G wireless network latency, mobile CPU). Mobile performance is the primary ranking factor evaluated by Google Mobile-First Indexing.
+                    </div>
+                </div>
+
+                <!-- 5 CWV Metric Cards Mobile -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <!-- TTFB -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">TTFB</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.mobile.ttfb.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.mobile.ttfb.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.mobile.ttfb.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.mobile.ttfb.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Time to First Byte</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 0.8s</div>
+                    </div>
+
+                    <!-- FCP -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">FCP</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.mobile.fcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.mobile.fcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.mobile.fcp.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.mobile.fcp.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">First Contentful Paint</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 1.8s</div>
+                    </div>
+
+                    <!-- LCP -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">LCP</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.mobile.lcp.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.mobile.lcp.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.mobile.lcp.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.mobile.lcp.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Largest Contentful Paint</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 2.5s</div>
+                    </div>
+
+                    <!-- CLS -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">CLS</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.mobile.cls.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.mobile.cls.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.mobile.cls.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.mobile.cls.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Cumulative Layout Shift</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 0.1</div>
+                    </div>
+
+                    <!-- Speed Index -->
+                    <div class="bg-white p-4 rounded-md border border-[#E5E0D8] shadow-2xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-mono font-bold text-slate-500 uppercase">Speed Index</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold {% if cwv.mobile.speed_index.status == 'good' %}bg-emerald-100 text-emerald-800{% elif cwv.mobile.speed_index.status == 'moderate' %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ cwv.mobile.speed_index.status|upper }}
+                            </span>
+                        </div>
+                        <div class="text-2xl font-bold font-mono text-slate-900">{{ cwv.mobile.speed_index.val }}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Speed Index</p>
+                        <div class="mt-2 text-[10px] font-mono text-slate-500 border-t border-[#EDE9E1] pt-1.5">Target: &lt; 3.4s</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend Bar -->
+            <div class="mt-6 pt-4 border-t border-[#EDE9E1] flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-500">
+                <div class="flex items-center gap-4">
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Good (&lt; threshold)</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Needs Improvement</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Poor</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Slowest Pages & Largest HTML Pages Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Slowest Pages Table -->
+        <div class="bg-white rounded-lg border border-[#E5E0D8] shadow-xs overflow-hidden">
+            <div class="px-6 py-4 border-b border-[#EDE9E1] bg-[#F8F6F1]/70 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <h3 class="text-sm font-bold text-slate-900">Slowest Pages</h3>
+                </div>
+                <span class="text-xs font-mono text-slate-400">Response Time (ms)</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-[#F8F6F1]/50 border-b border-[#E5E0D8] text-slate-500 font-mono">
+                            <th class="py-2.5 px-4 font-semibold w-12 text-center">#</th>
+                            <th class="py-2.5 px-4 font-semibold">Page URL</th>
+                            <th class="py-2.5 px-4 font-semibold text-right w-28">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-sans">
+                        {% for page in slowest_pages %}
+                        <tr class="hover:bg-[#F8F6F1]/70 transition-colors">
+                            <td class="py-3 px-4 font-mono text-slate-400 text-center">{{ loop.index }}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-mono text-xs text-blue-600 break-all font-medium leading-relaxed">
+                                    <a href="{{ page.url }}" target="_blank" class="hover:underline">{{ page.url }}</a>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <a href="/audit/{{ audit.id }}/page/{{ page.id }}" class="text-[10px] font-mono text-slate-400 hover:text-slate-700">View Page Details &rarr;</a>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <span class="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs {% if page.response_time_ms and page.response_time_ms > 1000 %}bg-rose-100 text-rose-800{% elif page.response_time_ms and page.response_time_ms > 500 %}bg-amber-100 text-amber-800{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+                                    {{ "%.0f"|format(page.response_time_ms or 0) }} ms
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-slate-400 font-mono">No slowest pages recorded</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Largest HTML Pages Table -->
+        <div class="bg-white rounded-lg border border-[#E5E0D8] shadow-xs overflow-hidden">
+            <div class="px-6 py-4 border-b border-[#EDE9E1] bg-[#F8F6F1]/70 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                    <h3 class="text-sm font-bold text-slate-900">Largest HTML Pages</h3>
+                </div>
+                <span class="text-xs font-mono text-slate-400">Payload Size (KB)</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-[#F8F6F1]/50 border-b border-[#E5E0D8] text-slate-500 font-mono">
+                            <th class="py-2.5 px-4 font-semibold w-12 text-center">#</th>
+                            <th class="py-2.5 px-4 font-semibold">Page URL</th>
+                            <th class="py-2.5 px-4 font-semibold text-right w-28">HTML Size</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-sans">
+                        {% for page in largest_pages %}
+                        <tr class="hover:bg-[#F8F6F1]/70 transition-colors">
+                            <td class="py-3 px-4 font-mono text-slate-400 text-center">{{ loop.index }}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-mono text-xs text-blue-600 break-all font-medium leading-relaxed">
+                                    <a href="{{ page.url }}" target="_blank" class="hover:underline">{{ page.url }}</a>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <a href="/audit/{{ audit.id }}/page/{{ page.id }}" class="text-[10px] font-mono text-slate-400 hover:text-slate-700">View Page Details &rarr;</a>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <span class="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs {% if (page.html_size or 0) > 150000 %}bg-rose-100 text-rose-800{% elif (page.html_size or 0) > 75000 %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-800{% endif %}">
+                                    {{ ((page.html_size or 0) / 1024)|int }} KB
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="py-6 text-center text-slate-400 font-mono">No pages recorded</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function switchPerfCWV(device) {
+        const dView = document.getElementById('perf-view-desktop');
+        const mView = document.getElementById('perf-view-mobile');
+        const dBtn = document.getElementById('btn-perf-desktop');
+        const mBtn = document.getElementById('btn-perf-mobile');
+        const vpEl = document.getElementById('perf-cwv-viewport');
+
+        if (!dView || !mView) return;
+
+        if (device === 'desktop') {
+            dView.classList.remove('hidden');
+            mView.classList.add('hidden');
+            if (dBtn) dBtn.className = 'px-3 py-1 rounded-md font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5';
+            if (mBtn) mBtn.className = 'px-3 py-1 rounded-md font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+            if (vpEl) vpEl.textContent = 'Viewport: 1280 × 800 px';
+        } else {
+            mView.classList.remove('hidden');
+            dView.classList.add('hidden');
+            if (mBtn) mBtn.className = 'px-3 py-1 rounded-md font-bold bg-sage-600 text-white shadow-xs transition-all flex items-center gap-1.5';
+            if (dBtn) dBtn.className = 'px-3 py-1 rounded-md font-bold text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+            if (vpEl) vpEl.textContent = 'Viewport: 390 × 844 px';
+        }
+    }
+</script>
+{% endblock %}

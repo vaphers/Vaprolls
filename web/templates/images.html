@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        <p class="text-sm text-gray-500 font-medium">Total Images</p>
+        <p class="text-3xl font-bold text-gray-900 mt-2">{{ images|length }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+        <p class="text-sm text-gray-500 font-medium">Missing Alt Text</p>
+        <p class="text-3xl font-bold text-yellow-600 mt-2">{{ missing_alt }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+        <p class="text-sm text-gray-500 font-medium">Missing Dimensions</p>
+        <p class="text-3xl font-bold text-red-600 mt-2">{{ no_dims }}</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="px-6 py-4 border-b bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-800">Image Audit Results</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image URL</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Found On</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Alt Text</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Dims Set</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for img in images[:100] %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm text-blue-600 max-w-xs truncate"><a href="{{ img.src }}" target="_blank" title="{{ img.src }}">{{ img.src }}</a></td>
+                    <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><a href="{{ img.page_url }}" target="_blank" class="hover:underline">{{ img.page_url }}</a></td>
+                    <td class="px-6 py-4 text-sm {% if not img.alt_text %}text-red-500 italic{% else %}text-gray-900{% endif %} truncate max-w-[200px]">{{ img.alt_text or 'Missing' }}</td>
+                    <td class="px-6 py-4 text-center">
+                        {% if img.has_dimensions %}<span class="text-green-500 font-bold">✓</span>{% else %}<span class="text-red-500 font-bold">✗</span>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">No images found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if images|length > 100 %}
+        <div class="px-6 py-3 bg-gray-50 text-center text-sm text-gray-500">Showing top 100 entries...</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

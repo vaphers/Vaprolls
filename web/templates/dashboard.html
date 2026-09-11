@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-10 py-6">
+
+    <!-- Distraction-Free Hero Section -->
+    <div class="text-center space-y-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-sage-100 text-sage-800 border border-sage-200 font-mono">
+            ★ ENTERPRISE SEO AUDITOR
+        </span>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Comprehensive SEO & Technical Audit
+        </h1>
+        <p class="text-slate-600 text-base max-w-xl mx-auto">
+            Crawl every page, simulate PageRank, verify Core Web Vitals, check international hreflang, and receive an organized SEOptimer-grade report.
+        </p>
+    </div>
+
+    <!-- URL Input Card (Distraction-Free) -->
+    <div class="bg-white rounded-lg shadow-soft border border-[#E5E0D8] p-6 md:p-8">
+        <form id="auditForm" class="space-y-4">
+            <div class="flex flex-col md:flex-row gap-3">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                    </div>
+                    <input type="url" id="url" required placeholder="https://example.com" class="block w-full pl-11 pr-4 py-3.5 text-base border border-[#D5CEBF] rounded-md focus:ring-2 focus:ring-sage-500 focus:border-sage-500 shadow-soft outline-none transition-all placeholder:text-slate-400">
+                </div>
+                <button type="submit" id="submitBtn" class="inline-flex items-center justify-center px-8 py-3.5 border border-transparent rounded-md text-base font-semibold text-white bg-sage-600 hover:bg-sage-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sage-500 shadow-soft transition-all shrink-0">
+                    <span id="btnText" class="flex items-center gap-2">
+                        <span>Audit Website</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </span>
+                    <span id="btnLoading" class="hidden items-center gap-2">
+                        <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>Starting Crawl...</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Optional Collapsible Settings (No Distraction) -->
+            <details class="group rounded-md border border-[#E5E0D8] bg-[#F8F6F1]/50 transition-all overflow-hidden">
+                <summary class="flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-slate-700 cursor-pointer hover:text-slate-900 select-none">
+                    <span class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Advanced Crawl Options & Scope (Optional)
+                    </span>
+                    <svg class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </summary>
+                
+                <div class="p-4 border-t border-[#E5E0D8] bg-white grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Crawl Mode</label>
+                        <select id="mode" class="block w-full rounded-md border-[#D5CEBF] text-xs shadow-soft p-2 border focus:ring-sage-500 focus:border-sage-500" onchange="toggleListMode(this.value)">
+                            <option value="spider">Spider Mode (Full Crawl)</option>
+                            <option value="list">List Mode (Explicit URLs)</option>
+                            <option value="sitemap">Sitemap Only</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Bot Preset</label>
+                        <select id="user_agent_preset" class="block w-full rounded-md border-[#D5CEBF] text-xs shadow-soft p-2 border focus:ring-sage-500 focus:border-sage-500">
+                            <option value="default">Default (SEOAuditor/1.0)</option>
+                            <option value="googlebot_smartphone">Googlebot Smartphone</option>
+                            <option value="googlebot_desktop">Googlebot Desktop</option>
+                            <option value="bingbot">Bingbot</option>
+                            <option value="chrome_desktop">Chrome Desktop</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Max Pages (<span id="maxPagesVal">500</span>)</label>
+                        <input type="range" id="max_pages" min="50" max="5000" step="50" value="500" class="mt-2 block w-full accent-sage-600" oninput="document.getElementById('maxPagesVal').innerText = this.value">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Crawl Speed &amp; Threads</label>
+                        <select id="crawl_speed" class="block w-full rounded-md border-[#D5CEBF] text-xs shadow-soft p-2 border focus:ring-sage-500 focus:border-sage-500 font-medium">
+                            <option value="turbo" selected>⚡ Turbo (20 threads, 0 delay) - Recommended</option>
+                            <option value="fast">🚀 Fast (10 threads, 0.05s delay)</option>
+                            <option value="polite">🐢 Polite (3 threads, 0.5s delay)</option>
+                        </select>
+                    </div>
+
+                    <div id="listModeContainer" class="hidden md:col-span-3">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">List Mode URLs (one per line)</label>
+                        <textarea id="urls_text" rows="3" placeholder="https://example.com/page-1&#10;https://example.com/page-2" class="block w-full rounded-md border-[#D5CEBF] text-xs font-mono p-2 border focus:ring-sage-500 focus:border-sage-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Include Regex</label>
+                        <input type="text" id="include_regex" placeholder="^https://example\.com/blog/.*" class="block w-full rounded-md border-[#D5CEBF] text-xs font-mono p-2 border focus:ring-sage-500 focus:border-sage-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Exclude Regex</label>
+                        <input type="text" id="exclude_regex" placeholder=".*(\?sort=|\/cart\/).*" class="block w-full rounded-md border-[#D5CEBF] text-xs font-mono p-2 border focus:ring-sage-500 focus:border-sage-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Basic Auth (Staging)</label>
+                        <input type="text" id="basic_auth" placeholder="username:password" class="block w-full rounded-md border-[#D5CEBF] text-xs p-2 border focus:ring-sage-500 focus:border-sage-500">
+                    </div>
+                </div>
+            </details>
+        </form>
+    </div>
+
+    <!-- Recent Audits List -->
+    <div class="bg-white rounded-lg shadow-soft border border-[#E5E0D8] overflow-hidden">
+        <div class="px-6 py-4 border-b border-[#E5E0D8] flex justify-between items-center bg-[#F8F6F1]/60">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider font-mono">Recent Audits</h3>
+            <span class="text-xs text-slate-500 font-mono">{{ audits|length }} Audits Stored</span>
+        </div>
+        
+        <div class="divide-y divide-[#E5E0D8]">
+            {% for a in audits %}
+            <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#F8F6F1]/50 transition-colors">
+                <div class="flex items-center gap-4 min-w-0">
+                    <!-- Circular Score Pill -->
+                    <div class="w-12 h-12 rounded-md flex flex-col items-center justify-center shrink-0 {% if a.health_score != None and a.health_score > 80 %}bg-emerald-50 text-emerald-800 border border-emerald-200{% elif a.health_score != None and a.health_score > 50 %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-rose-50 text-rose-800 border border-rose-200{% endif %}">
+                        <span class="text-sm font-black font-mono leading-none">{{ "%.0f"|format(a.health_score) if a.health_score != None else '-' }}</span>
+                        <span class="text-[9px] font-mono font-medium opacity-80">SCORE</span>
+                    </div>
+
+                    <div class="min-w-0">
+                        <h4 class="text-sm font-bold text-slate-900 truncate">
+                            <a href="/audit/{{ a.id }}" class="hover:text-sage-700 hover:underline">
+                                {{ a.domain }}
+                            </a>
+                        </h4>
+                        <div class="flex items-center gap-3 text-xs text-slate-500 font-mono mt-0.5">
+                            <span>{{ a.started_at[:10] if a.started_at else 'Recent' }}</span>
+                            <span>•</span>
+                            <span>{{ a.total_pages or 0 }} Pages</span>
+                            <span>•</span>
+                            <span class="capitalize {% if a.status == 'complete' %}text-emerald-700 font-medium{% elif a.status == 'error' %}text-rose-700{% else %}text-sage-700{% endif %}">
+                                {{ a.status }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 self-end md:self-auto">
+                    <a href="/audit/{{ a.id }}/report" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-md bg-sage-600 text-white hover:bg-sage-700 transition-colors shadow-soft">
+                        <span>View Report</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not audits %}
+            <div class="px-6 py-12 text-center text-slate-500 text-sm">
+                No audits yet. Enter a website URL above to generate your first audit report!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleListMode(val) {
+        const c = document.getElementById('listModeContainer');
+        if (val === 'list') { c.classList.remove('hidden'); } else { c.classList.add('hidden'); }
+    }
+
+    document.getElementById('auditForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btnText = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        btnText.classList.add('hidden');
+        btnLoading.classList.remove('hidden');
+        btnLoading.classList.add('flex');
+        submitBtn.disabled = true;
+
+        const speedVal = (document.getElementById('crawl_speed') ? document.getElementById('crawl_speed').value : 'turbo');
+        let concurrency = 20;
+        let crawlDelay = 0.0;
+        if (speedVal === 'fast') {
+            concurrency = 10;
+            crawlDelay = 0.05;
+        } else if (speedVal === 'polite') {
+            concurrency = 3;
+            crawlDelay = 0.5;
+        }
+
+        const payload = {
+            url: document.getElementById('url').value.trim(),
+            mode: document.getElementById('mode').value,
+            user_agent_preset: document.getElementById('user_agent_preset').value,
+            max_pages: parseInt(document.getElementById('max_pages').value) || 500,
+            concurrency: concurrency,
+            crawl_delay: crawlDelay,
+            include_regex: document.getElementById('include_regex').value.trim() || null,
+            exclude_regex: document.getElementById('exclude_regex').value.trim() || null,
+            basic_auth: document.getElementById('basic_auth').value.trim() || null,
+            urls_text: document.getElementById('urls_text').value.trim() || null
+        };
+
+        try {
+            const resp = await fetch('/api/audit/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.audit_id) {
+                window.location.href = `/audit/${data.audit_id}`;
+            } else {
+                alert('Failed to start audit: ' + JSON.stringify(data));
+                btnText.classList.remove('hidden');
+                btnLoading.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            alert('Error connecting to audit service: ' + err);
+            btnText.classList.remove('hidden');
+            btnLoading.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h3 class="text-2xl font-bold text-gray-800">Hreflang & International SEO Matrix</h3>
+        <p class="text-gray-500">Cross-language validation including bidirectional reciprocity, self-referencing tags, and ISO 639-1 / 3166-1 syntax.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h4 class="text-lg font-semibold text-gray-800">Detected Hreflang Tags ({{ tags|length }})</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 text-gray-500">
+                    <tr>
+                        <th class="px-6 py-3 text-left font-medium">Source Page</th>
+                        <th class="px-6 py-3 text-left font-medium">Language Code</th>
+                        <th class="px-6 py-3 text-left font-medium">Alternate Target URL</th>
+                        <th class="px-6 py-3 text-left font-medium">Self-Ref?</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for tag in tags %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 font-mono text-xs text-gray-700 truncate max-w-xs">{{ tag.source_url }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded font-semibold text-xs">
+                                {{ tag.lang_code }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-xs text-blue-600 truncate max-w-xs">
+                            <a href="{{ tag.target_url }}" target="_blank" class="hover:underline">{{ tag.target_url }}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if tag.is_self %}
+                                <span class="text-green-600 font-semibold text-xs">✓ Self</span>
+                            {% else %}
+                                <span class="text-gray-400 text-xs">Alternate</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                            No hreflang annotations found on this site. If this is a single-language site, this is normal.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SEO Spider & URL Explorer{% endblock %}</title>
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Roboto', 'sans-serif'],
+                        mono: ['Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        paper: '#FFFFFF',
+                        surface: '#FFFFFF',
+                        ink: '#000000',
+                        muted: '#000000',
+                        line: '#D1D5DB',
+                        sage: {
+                            DEFAULT: '#4F654C',
+                            dark: '#374735',
+                            pale: '#E5E7EB'
+                        },
+                        beige: '#FFFFFF'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-white text-black flex flex-col h-screen w-screen overflow-hidden antialiased font-sans m-0 p-0 select-none">
+
+    <!-- Top Command Bar (Clean White, Black Text, Larger Font) -->
+    <header class="bg-white border-b border-[#D1D5DB] px-3 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 text-sm z-20">
+        <!-- Left: Brand & Spider URL Input Bar -->
+        <div class="flex items-center gap-3 min-w-0 flex-wrap">
+            <a href="/" class="flex items-center gap-1.5 shrink-0 font-bold text-black tracking-tight text-base">
+                <span class="w-6 h-6 bg-black text-white flex items-center justify-center text-xs font-bold">S</span>
+                <span>SEO Spider</span>
+            </a>
+
+            <span class="text-[#D1D5DB]">|</span>
+
+            <!-- Spider URL Input & Controls -->
+            <form id="spider-crawl-form" onsubmit="event.preventDefault(); startSpiderCrawl();" class="flex items-center gap-2 m-0 p-0">
+                <label for="spider-url-input" class="text-xs uppercase font-bold text-black shrink-0">Enter URL to spider:</label>
+                <input id="spider-url-input" type="url" required placeholder="https://example.com" 
+                       value="{{ audit.url if audit else '' }}" 
+                       class="bg-white border border-[#D1D5DB] px-3 py-1.5 text-sm text-black w-72 md:w-96 lg:w-[420px] focus:outline-none focus:border-black font-normal">
+                
+                <button type="submit" id="spider-start-btn" class="btn-primary py-1.5 px-4 text-sm font-medium cursor-pointer">
+                    Start
+                </button>
+                <button type="button" id="spider-stop-btn" onclick="stopSpiderCrawl()" class="btn-secondary py-1.5 px-3 text-sm text-[#B91C1C] border-[#B91C1C] hidden cursor-pointer font-medium">
+                    Stop
+                </button>
+            </form>
+
+            <!-- Crawl Progress Gauge -->
+            <div id="crawl-progress-widget" class="flex items-center gap-2 text-xs font-medium text-black {% if not audit or audit.status == 'complete' %}hidden{% endif %}">
+                <span class="text-black font-semibold">Status:</span>
+                <span id="spider-status-text" class="text-black font-bold uppercase">{{ audit.status if audit else 'Ready' }}</span>
+                <div class="w-28 bg-[#F3F4F6] h-3 border border-[#D1D5DB] overflow-hidden">
+                    <div id="spider-progress-bar" class="bg-black h-full transition-all duration-200" style="width: 0%"></div>
+                </div>
+                <span id="spider-progress-nums" class="text-black font-bold text-xs">0 / 0</span>
+            </div>
+        </div>
+
+        <!-- Right: Recent Audits & Quick Export -->
+        <div class="flex items-center gap-3 shrink-0 text-sm">
+            {% if recent_audits %}
+            <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold uppercase text-black">Crawl:</span>
+                <select id="audit-switcher" onchange="window.location.href='/?audit_id=' + this.value" 
+                        class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black focus:outline-none focus:border-black max-w-[220px] truncate font-normal">
+                    {% for a in recent_audits %}
+                    <option value="{{ a.id }}" {% if audit and audit.id == a.id %}selected{% endif %}>
+                        {{ a.domain or a.url }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if audit %}
+            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="btn-secondary py-1 px-3 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Export CSV</span>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Main Single-Page Workspace (Edge-to-Edge Pure White) -->
+    <main class="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 bg-white text-black">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Live Crawl WebSocket & Control Scripts -->
+    <script>
+    let activeCrawlId = "{{ audit.id if audit else '' }}";
+    let crawlWs = null;
+
+    async function startSpiderCrawl() {
+        const input = document.getElementById('spider-url-input');
+        const url = input.value.trim();
+        if (!url) return;
+
+        const startBtn = document.getElementById('spider-start-btn');
+        const stopBtn = document.getElementById('spider-stop-btn');
+        const progressWidget = document.getElementById('crawl-progress-widget');
+        const statusText = document.getElementById('spider-status-text');
+
+        startBtn.disabled = true;
+        startBtn.classList.add('opacity-50');
+        stopBtn.classList.remove('hidden');
+        progressWidget.classList.remove('hidden');
+        statusText.textContent = "INITIALIZING";
+
+        try {
+            const res = await fetch('/api/audit/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url, max_pages: 500, concurrency: 15 })
+            });
+            const data = await res.json();
+            if (data.audit_id) {
+                activeCrawlId = data.audit_id;
+                statusText.textContent = "CRAWLING";
+                connectCrawlWs(data.audit_id);
+            }
+        } catch (err) {
+            console.error("Crawl start failed:", err);
+            statusText.textContent = "ERROR";
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50');
+            stopBtn.classList.add('hidden');
+        }
+    }
+
+    async function stopSpiderCrawl() {
+        if (!activeCrawlId) return;
+        try {
+            await fetch(`/api/audit/${activeCrawlId}/stop`, { method: 'POST' });
+            if (crawlWs) crawlWs.close();
+            window.location.href = `/?audit_id=${activeCrawlId}`;
+        } catch (err) {
+            console.error("Stop error:", err);
+            window.location.reload();
+        }
+    }
+
+    function connectCrawlWs(auditId) {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        crawlWs = new WebSocket(`${proto}//${location.host}/ws/audit/${auditId}`);
+
+        crawlWs.onmessage = (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                if (msg.type === 'progress') {
+                    const crawled = msg.crawled || 0;
+                    const total = msg.total || 1;
+                    const pct = Math.min(100, Math.round((crawled / total) * 100));
+                    document.getElementById('spider-progress-bar').style.width = pct + '%';
+                    document.getElementById('spider-progress-nums').textContent = `${crawled} / ${total}`;
+                    document.getElementById('spider-status-text').textContent = `CRAWLING (${pct}%)`;
+                }
+            } catch (e) {}
+        };
+
+        crawlWs.onclose = () => {
+            setTimeout(() => {
+                window.location.href = `/?audit_id=${auditId}`;
+            }, 1000);
+        };
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

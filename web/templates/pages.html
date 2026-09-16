@@ -96,10 +96,10 @@
     <div class="flex-1 flex flex-col lg:flex-row min-h-0 m-0 p-0 overflow-hidden bg-white text-black">
         
         <!-- Left Column: Master Table & Bottom Inspector -->
-        <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-white">
+        <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-white" id="left-column-container">
             
             <!-- Master Table Container (Upper Split, Zero Padding, Legible Font Size) -->
-            <div class="flex-1 min-h-[220px] max-h-[50vh] overflow-auto select-none bg-white" id="master-table-container">
+            <div class="flex-1 min-h-[80px] overflow-auto select-none bg-white" id="master-table-container">
                 <table class="w-full border-collapse text-left font-sans text-[13.5px]" id="master-url-table">
                     <thead class="sticky top-0 bg-white z-10 border-b-2 border-[#D1D5DB] shadow-none">
                         <tr class="text-black uppercase tracking-wider text-xs font-bold bg-[#F8F9FA]">
@@ -244,7 +244,7 @@
             </div>
 
             <!-- Bottom Split Inspector Panel (Resizable Height, Overflow Auto) -->
-            <div class="flex flex-col min-h-0 bg-white shrink-0" id="inspector-container" style="height: 340px;">
+            <div class="flex flex-col min-h-0 bg-white shrink-0 overflow-hidden" id="inspector-container" style="height: 340px;">
                 
                 <!-- Inspector Header -->
                 <div class="bg-white border-b border-[#D1D5DB] px-3 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0 text-sm font-medium">
@@ -936,45 +936,57 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Bottom Inspector Vertical Resizer
     const inspResizer = document.getElementById('inspector-resizer');
     const inspContainer = document.getElementById('inspector-container');
+    const leftCol = document.getElementById('left-column-container') || (inspContainer ? inspContainer.parentElement : null);
 
-    if (inspResizer && inspContainer) {
-        // Restore persisted height from localStorage
-        const savedHeight = localStorage.getItem('spider_inspector_height');
-        if (savedHeight) {
-            inspContainer.style.height = savedHeight + 'px';
+    if (inspResizer && inspContainer && leftCol) {
+        // Restore persisted height from localStorage safely
+        const savedHeight = parseInt(localStorage.getItem('spider_inspector_height'), 10);
+        if (!isNaN(savedHeight) && savedHeight > 0) {
+            const colH = leftCol.clientHeight || window.innerHeight;
+            const safeH = Math.min(Math.max(100, savedHeight), Math.max(100, colH - 88));
+            inspContainer.style.height = safeH + 'px';
         }
 
         let isDraggingInsp = false;
-        let startY = 0;
-        let startH = 0;
 
-        inspResizer.addEventListener('mousedown', (e) => {
+        const startInspDrag = (e) => {
             isDraggingInsp = true;
-            startY = e.clientY;
-            startH = inspContainer.offsetHeight;
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'row-resize';
-        });
+            e.preventDefault();
+        };
 
-        document.addEventListener('mousemove', (e) => {
+        const onInspDrag = (e) => {
             if (!isDraggingInsp) return;
-            const dy = startY - e.clientY; // dragging UP increases bottom panel height
-            let newH = startH + dy;
-            const minH = 120;
-            const maxH = Math.round(window.innerHeight * 0.75);
+            const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : null);
+            if (clientY === null) return;
+
+            const colRect = leftCol.getBoundingClientRect();
+            // Inspector sits at the bottom of the left column.
+            // Height is the distance from mouse cursor Y to the bottom of the column.
+            let newH = Math.round(colRect.bottom - clientY);
+            const minH = 100;
+            const maxH = Math.max(minH, Math.round(colRect.height - 88)); // Retain space for master table header/first row
             if (newH < minH) newH = minH;
             if (newH > maxH) newH = maxH;
             inspContainer.style.height = newH + 'px';
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
+        const stopInspDrag = () => {
             if (isDraggingInsp) {
                 isDraggingInsp = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
                 localStorage.setItem('spider_inspector_height', inspContainer.offsetHeight);
             }
-        });
+        };
+
+        inspResizer.addEventListener('mousedown', startInspDrag);
+        inspResizer.addEventListener('touchstart', startInspDrag, { passive: false });
+        document.addEventListener('mousemove', onInspDrag);
+        document.addEventListener('touchmove', onInspDrag, { passive: false });
+        document.addEventListener('mouseup', stopInspDrag);
+        document.addEventListener('touchend', stopInspDrag);
     }
 
     // 2. Right Sidebar Horizontal Resizer
@@ -983,42 +995,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (sideResizer && sideContainer) {
         // Restore persisted width from localStorage
-        const savedWidth = localStorage.getItem('spider_sidebar_width');
-        if (savedWidth && window.innerWidth >= 1024) {
-            sideContainer.style.width = savedWidth + 'px';
+        const savedWidth = parseInt(localStorage.getItem('spider_sidebar_width'), 10);
+        if (!isNaN(savedWidth) && savedWidth > 0 && window.innerWidth >= 1024) {
+            const safeW = Math.min(Math.max(240, savedWidth), Math.round(window.innerWidth * 0.70));
+            sideContainer.style.width = safeW + 'px';
         }
 
         let isDraggingSide = false;
-        let startX = 0;
-        let startW = 0;
 
-        sideResizer.addEventListener('mousedown', (e) => {
+        const startSideDrag = (e) => {
+            if (window.innerWidth < 1024) return;
             isDraggingSide = true;
-            startX = e.clientX;
-            startW = sideContainer.offsetWidth;
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'col-resize';
-        });
+            e.preventDefault();
+        };
 
-        document.addEventListener('mousemove', (e) => {
+        const onSideDrag = (e) => {
             if (!isDraggingSide) return;
-            const dx = startX - e.clientX; // dragging LEFT increases right sidebar width
-            let newW = startW + dx;
+            const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+            if (clientX === null) return;
+
+            let newW = Math.round(window.innerWidth - clientX);
             const minW = 240;
-            const maxW = Math.round(window.innerWidth * 0.60);
+            const maxW = Math.round(window.innerWidth * 0.65);
             if (newW < minW) newW = minW;
             if (newW > maxW) newW = maxW;
             sideContainer.style.width = newW + 'px';
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
+        const stopSideDrag = () => {
             if (isDraggingSide) {
                 isDraggingSide = false;
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
                 localStorage.setItem('spider_sidebar_width', sideContainer.offsetWidth);
             }
-        });
+        };
+
+        sideResizer.addEventListener('mousedown', startSideDrag);
+        sideResizer.addEventListener('touchstart', startSideDrag, { passive: false });
+        document.addEventListener('mousemove', onSideDrag);
+        document.addEventListener('touchmove', onSideDrag, { passive: false });
+        document.addEventListener('mouseup', stopSideDrag);
+        document.addEventListener('touchend', stopSideDrag);
     }
 })();
 

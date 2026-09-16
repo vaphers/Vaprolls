@@ -69,9 +69,9 @@ class CrawlEngine:
         self.user_agent = USER_AGENT_PRESETS.get(ua_preset, getattr(self.config, 'USER_AGENT', 'SEOAuditor/1.0'))
         
         self.max_pages = getattr(self.config, 'MAX_PAGES', 5000)
-        self.crawl_delay = getattr(self.config, 'CRAWL_DELAY', 0.5)
+        self.crawl_delay = getattr(self.config, 'CRAWL_DELAY', 0.0)
         self.crawl_mode = getattr(self.config, 'CRAWL_MODE', 'spider')
-        max_concurrency = getattr(self.config, 'CRAWL_CONCURRENCY', 5)
+        max_concurrency = getattr(self.config, 'CRAWL_CONCURRENCY', 15)
         
         # Staging Auth & Realistic Browser Headers
         client_headers = {
@@ -185,36 +185,42 @@ class CrawlEngine:
         
         async def worker():
             nonlocal pages_crawled
-            while pages_crawled < self.max_pages:
+            idle_cycles = 0
+            max_idle = 30  # Exit after 3 seconds of continuous empty queue (30 * 0.1s)
+            while True:
+                if pages_crawled >= self.max_pages:
+                    break
                 try:
-                    item = self.frontier.get_nowait()
-                    if len(item) == 3:
-                        url, depth, parent_url = item
-                    else:
-                        url, depth = item[0], item[1]
-                        parent_url = None
-                except asyncio.QueueEmpty:
-                    await asyncio.sleep(0.1)
-                    if self.frontier.empty():
+                    item = await asyncio.wait_for(self.frontier.get(), timeout=0.5)
+                    idle_cycles = 0
+                except asyncio.TimeoutError:
+                    idle_cycles += 1
+                    if idle_cycles >= 6:  # 3 seconds with no new URLs
                         break
                     continue
-                    
+
+                if len(item) == 3:
+                    url, depth, parent_url = item
+                else:
+                    url, depth = item[0], item[1]
+                    parent_url = None
+
                 if url in self.visited:
                     self.frontier.task_done()
                     continue
-                    
+
                 self.visited.add(url)
-                
+
                 async with self.semaphore:
                     try:
                         pages_crawled += 1
                         page_resp = await self._fetch_page(url)
-                        
+
                         if page_resp and "text/html" in page_resp.content_type:
                             raw_hash = hashlib.md5(page_resp.html.encode("utf-8")).hexdigest()
                             page_resp.raw_html_hash = raw_hash
                             rendered_hash = raw_hash
-                            
+
                             needs_js = await self._detect_js_rendering_needed(page_resp.html)
                             if needs_js and getattr(self.config, 'JS_RENDER_ENABLED', True):
                                 rendered = await self._fetch_with_playwright(url)
@@ -222,15 +228,13 @@ class CrawlEngine:
                                     rendered_hash = hashlib.md5(rendered.encode("utf-8")).hexdigest()
                                     page_resp.rendered_html_hash = rendered_hash
                                     page_resp.html = rendered
-                                
+
                             parsed = await self._parse_page(page_resp)
-                            
-                            # Determine indexability
+
                             is_indexable = True
                             if parsed.meta_robots and 'noindex' in parsed.meta_robots.lower():
                                 is_indexable = False
-                            
-                            # Save page to database
+
                             import json as _json
                             mime_val = page_resp.content_type.split(';')[0].strip() if page_resp.content_type else 'text/html'
                             page_id = await self.database.add_page(
@@ -257,22 +261,19 @@ class CrawlEngine:
                                 content_hash=parsed.content_hash,
                                 created_at=datetime.utcnow().isoformat()
                             )
-                            
-                            # Save custom extractions
+
                             for ext in parsed.custom_extractions:
                                 await self.database.add_custom_extraction(
                                     audit_id, page_id, page_resp.final_url,
                                     ext['rule_name'], ext['extracted_value']
                                 )
-                                
-                            # Save custom search matches
+
                             for sm in parsed.custom_searches:
                                 await self.database.add_custom_search_match(
                                     audit_id, page_id, page_resp.final_url,
                                     sm['search_name'], sm['matched'], sm.get('snippet', '')
                                 )
-                            
-                            # Save headings in batch
+
                             headings_batch = []
                             for tag_name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                                 for idx, heading_text in enumerate(parsed.h1_h6.get(tag_name, [])):
@@ -280,7 +281,6 @@ class CrawlEngine:
                             if headings_batch:
                                 await self.database.add_headings_batch(headings_batch)
 
-                            # Save links in batch (only internal links as requested, and enqueue if spider mode)
                             links_batch = []
                             for link in parsed.links:
                                 href = link.get("href")
@@ -288,15 +288,11 @@ class CrawlEngine:
                                     continue
                                 abs_href = self._normalize_url(href, page_resp.final_url)
                                 is_internal = self._is_internal_url(abs_href)
-                                
+
                                 rel_val = link.get("rel", "")
                                 if isinstance(rel_val, list):
                                     rel_val = " ".join(rel_val)
                                 nofollow = 'nofollow' in str(rel_val).lower()
-                                
-                                # Keep internal links only
-                                if not is_internal:
-                                    continue
 
                                 links_batch.append({
                                     'audit_id': audit_id,
@@ -304,22 +300,21 @@ class CrawlEngine:
                                     'source_url': page_resp.final_url,
                                     'target_url': abs_href,
                                     'anchor_text': link.get("text", ""),
-                                    'is_internal': True,
+                                    'is_internal': is_internal,
                                     'is_broken': False,
                                     'status_code': None,
                                     'rel_attributes': str(rel_val),
                                     'link_type': link.get("tag", "a"),
                                     'nofollow': nofollow
                                 })
-                                
+
                                 # Add internal URLs to frontier if in spider mode
-                                if self.crawl_mode == 'spider' and self._should_crawl(abs_href, depth + 1):
+                                if is_internal and self.crawl_mode == 'spider' and self._should_crawl(abs_href, depth + 1):
                                     self.frontier.put_nowait((abs_href, depth + 1, page_resp.final_url))
 
                             if links_batch:
                                 await self.database.add_links_batch(links_batch)
 
-                            # Save images in batch
                             images_batch = []
                             for img in parsed.images:
                                 src = img.get("src", "")
@@ -341,8 +336,7 @@ class CrawlEngine:
                                 })
                             if images_batch:
                                 await self.database.add_images_batch(images_batch)
-                            
-                            # Save structured data
+
                             for sd in parsed.structured_data:
                                 try:
                                     sd_parsed = _json.loads(sd)
@@ -366,8 +360,7 @@ class CrawlEngine:
                                         is_valid=False,
                                         errors='Invalid JSON-LD syntax'
                                     )
-                            
-                            # Save resources
+
                             for res in parsed.resources:
                                 res_url = res.get("href") or res.get("src")
                                 if res_url:
@@ -381,9 +374,8 @@ class CrawlEngine:
                                         is_minified=None,
                                         cache_control=None
                                     )
-                        
+
                         elif page_resp:
-                            # Non-HTML page (PDF, image, etc.)
                             await self.database.add_page(
                                 audit_id,
                                 url=page_resp.final_url,
@@ -394,17 +386,20 @@ class CrawlEngine:
                                 word_count=0,
                                 created_at=datetime.utcnow().isoformat()
                             )
-                            
+
                         if self.progress_callback:
                             if asyncio.iscoroutinefunction(self.progress_callback):
                                 await self.progress_callback({"crawled": pages_crawled, "total": self.max_pages, "url": url})
                             else:
                                 self.progress_callback({"crawled": pages_crawled, "total": self.max_pages, "url": url})
-                        
-                        # Rate limiting (skip sleep if crawl_delay is 0 for maximum speed)
+
+                        # Periodic database flush (batch commits for speed)
+                        if pages_crawled % 10 == 0:
+                            await self.database.flush()
+
                         if self.crawl_delay > 0:
                             await asyncio.sleep(self.crawl_delay)
-                                
+
                     except Exception as e:
                         logger.error(f"Error processing {url}: {e}", exc_info=True)
                     finally:
@@ -412,28 +407,22 @@ class CrawlEngine:
 
         num_workers = getattr(self.config, 'CRAWL_CONCURRENCY', 15)
         workers = [asyncio.create_task(worker()) for _ in range(num_workers)]
-        
-        # Wait for all work to complete
-        await asyncio.sleep(1)  # Let workers start
-        while not self.frontier.empty() or pages_crawled < 1:
-            await asyncio.sleep(0.5)
-            if all(w.done() for w in workers):
-                break
-        
-        for w in workers:
-            if not w.done():
-                w.cancel()
-            
+
+        # Wait for all workers to finish naturally
+        await asyncio.gather(*workers, return_exceptions=True)
+
         await self.client.aclose()
-        
-        # Update audit status
+
+        # Final flush of any pending writes
+        await self.database.flush()
+
         await self.database.update_audit(
             audit_id,
             status='analyzing',
             completed_at=datetime.utcnow().isoformat(),
             total_pages=pages_crawled
         )
-        
+
         return audit_id
 
     async def _fetch_page(self, url: str) -> Optional[PageResponse]:

@@ -53,8 +53,12 @@ class Database:
         
         query = f"INSERT INTO {table} ({cols}) VALUES ({placeholders})"
         cursor = await self.conn.execute(query, values)
-        await self.conn.commit()
         return cursor.lastrowid
+
+    async def flush(self):
+        """Commit pending writes to disk."""
+        if self.conn:
+            await self.conn.commit()
 
     async def create_audit(self, audit_id: str, domain: str, url: str, config: str) -> str:
         query = "INSERT INTO audits (id, domain, url, status, config_json) VALUES (?, ?, ?, ?, ?)"
@@ -96,7 +100,6 @@ class Database:
             ON CONFLICT(audit_id, url) DO UPDATE SET {set_clause}
         """
         cursor = await self.conn.execute(query, values)
-        await self.conn.commit()
         
         if cursor.lastrowid:
             return cursor.lastrowid
@@ -188,7 +191,6 @@ class Database:
             for l in links_list
         ]
         await self.conn.executemany(query, params)
-        await self.conn.commit()
 
     async def get_links(self, audit_id: str, is_internal: Optional[bool] = None, is_broken: Optional[bool] = None) -> List[Dict[str, Any]]:
         query = "SELECT * FROM links WHERE audit_id = ?"
@@ -230,7 +232,6 @@ class Database:
             for i in images_list
         ]
         await self.conn.executemany(query, params)
-        await self.conn.commit()
 
     async def get_images(self, audit_id: str) -> List[Dict[str, Any]]:
         async with self.conn.execute("SELECT * FROM images WHERE audit_id = ?", (audit_id,)) as cursor:
@@ -258,7 +259,6 @@ class Database:
             return
         query = "INSERT INTO headings (page_id, tag, text, order_index) VALUES (?, ?, ?, ?)"
         await self.conn.executemany(query, headings_list)
-        await self.conn.commit()
 
     async def get_headings(self, page_id: int) -> List[Dict[str, Any]]:
         async with self.conn.execute("SELECT * FROM headings WHERE page_id = ? ORDER BY order_index", (page_id,)) as cursor:

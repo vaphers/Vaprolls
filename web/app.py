@@ -60,24 +60,48 @@ from fastapi.responses import FileResponse
 
 from contextlib import asynccontextmanager
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("SEO Spider workspace starting up...")
-    yield
-    # Graceful Shutdown
-    logger.info("SEO Spider workspace shutting down. Cleaning up active crawls and connections...")
+def cleanup_all_crawl_data():
+    """Wipe database, journals, screenshots, and in-memory caches cleanly."""
     for aid, task in list(active_audits.items()):
         if not task.done():
-            logger.info(f"Canceling crawl task {aid}")
             task.cancel()
+    active_audits.clear()
+    PAGE_HEADERS_CACHE.clear()
+    PAGE_TECH_CACHE.clear()
+    try:
+        db_path = get_config().DB_PATH
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            logger.info(f"Removed database: {db_path}")
+        for suffix in ['-wal', '-shm']:
+            journal = db_path + suffix
+            if os.path.exists(journal):
+                os.remove(journal)
+        shots_dir = os.path.join(BASE_DIR, "static", "screenshots")
+        if os.path.isdir(shots_dir):
+            import shutil
+            shutil.rmtree(shots_dir, ignore_errors=True)
+            logger.info(f"Removed screenshots directory: {shots_dir}")
+    except Exception as e:
+        logger.warning(f"Error cleaning up data: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: ensure clean state with no lingering caches from previous sessions
+    logger.info("SEO Spider workspace starting up. Cleaning any stale data...")
+    cleanup_all_crawl_data()
+    yield
+    # Graceful Shutdown: close connections and wipe stored data
+    logger.info("SEO Spider workspace shutting down. Cleaning up active crawls and connections...")
     for aid, conns in list(ws_connections.items()):
         for ws in conns:
             try:
                 await ws.close(code=1001, reason="Server shutting down")
             except Exception:
                 pass
-        ws_connections.clear()
+    ws_connections.clear()
+    cleanup_all_crawl_data()
     logger.info("SEO Spider workspace clean shutdown complete.")
 
 app = FastAPI(title="SEO Spider & URL Explorer", lifespan=lifespan)
@@ -232,6 +256,13 @@ async def stop_audit(audit_id: str):
     async with Database(config.DB_PATH) as db:
         await db.update_audit(audit_id, status="stopped")
     return {"status": "stopped", "audit_id": audit_id}
+
+
+@app.post("/api/audit/clear")
+async def clear_all_data():
+    """Cancel all active crawls, clear caches, and wipe stored audit data for a clean reset."""
+    cleanup_all_crawl_data()
+    return {"status": "cleared"}
 
 
 @app.get("/audit/{audit_id}", response_class=HTMLResponse)

@@ -49,6 +49,12 @@ def main():
             print("Fallback to CLI: use 'python main.py audit <url>'")
         except KeyboardInterrupt:
             print("\nShutting down...")
+        finally:
+            try:
+                from web.app import cleanup_all_crawl_data
+                cleanup_all_crawl_data()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     main()

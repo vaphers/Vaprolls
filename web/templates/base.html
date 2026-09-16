@@ -96,6 +96,9 @@
             {% endif %}
 
             {% if audit %}
+            <button type="button" onclick="clearAllDataAndReset()" class="btn-secondary py-1 px-2.5 text-xs font-medium text-[#B91C1C] border-[#D1D5DB] hover:border-[#B91C1C] flex items-center gap-1 cursor-pointer" title="Wipe stored crawl data and reset session">
+                <span>Reset / Clear</span>
+            </button>
             <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="btn-secondary py-1 px-3 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 <span>Export CSV</span>
@@ -160,6 +163,18 @@
         } catch (err) {
             console.error("Stop error:", err);
             window.location.reload();
+        }
+    }
+
+    async function clearAllDataAndReset() {
+        if (!confirm("Are you sure you want to clear all crawl data and caches?")) return;
+        try {
+            if (crawlWs) crawlWs.close();
+            await fetch('/api/audit/clear', { method: 'POST' });
+            window.location.href = '/';
+        } catch (err) {
+            console.error("Clear error:", err);
+            window.location.href = '/';
         }
     }
 

@@ -182,6 +182,20 @@
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         crawlWs = new WebSocket(`${proto}//${location.host}/ws/audit/${auditId}`);
 
+        let redirected = false;
+        function finishAndRedirect() {
+            if (redirected) return;
+            redirected = true;
+            if (pollTimer) clearInterval(pollTimer);
+            const pBar = document.getElementById('spider-progress-bar');
+            const pText = document.getElementById('spider-status-text');
+            if (pBar) pBar.style.width = '100%';
+            if (pText) pText.textContent = 'COMPLETE (100%)';
+            setTimeout(() => {
+                window.location.href = `/?audit_id=${auditId}`;
+            }, 600);
+        }
+
         crawlWs.onmessage = (evt) => {
             try {
                 const msg = JSON.parse(evt.data);
@@ -192,15 +206,46 @@
                     document.getElementById('spider-progress-bar').style.width = pct + '%';
                     document.getElementById('spider-progress-nums').textContent = `${crawled} / ${total}`;
                     document.getElementById('spider-status-text').textContent = `CRAWLING (${pct}%)`;
+                } else if (msg.type === 'status' && msg.status === 'analyzing') {
+                    document.getElementById('spider-status-text').textContent = 'ANALYZING...';
+                    document.getElementById('spider-progress-bar').style.width = '95%';
+                } else if (msg.type === 'complete') {
+                    finishAndRedirect();
                 }
             } catch (e) {}
         };
 
         crawlWs.onclose = () => {
-            setTimeout(() => {
-                window.location.href = `/?audit_id=${auditId}`;
-            }, 1000);
+            setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/audit/${auditId}/status`);
+                    const st = await res.json();
+                    if (st.status === 'complete' || st.status === 'stopped') {
+                        finishAndRedirect();
+                    }
+                } catch (e) {
+                    finishAndRedirect();
+                }
+            }, 400);
         };
+
+        const pollTimer = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/audit/${auditId}/status`);
+                const st = await res.json();
+                if (st.status === 'complete') {
+                    finishAndRedirect();
+                } else if (st.status === 'analyzing') {
+                    const pText = document.getElementById('spider-status-text');
+                    const pBar = document.getElementById('spider-progress-bar');
+                    if (pText) pText.textContent = 'ANALYZING...';
+                    if (pBar) pBar.style.width = '95%';
+                } else if (st.status === 'stopped' || st.status === 'error') {
+                    clearInterval(pollTimer);
+                    window.location.href = `/?audit_id=${auditId}`;
+                }
+            } catch (e) {}
+        }, 2000);
     }
     </script>
     {% block scripts %}{% endblock %}

@@ -388,10 +388,11 @@ class CrawlEngine:
                             )
 
                         if self.progress_callback:
+                            active_total = min(self.max_pages, max(pages_crawled, len(self.visited) + self.frontier.qsize()))
                             if asyncio.iscoroutinefunction(self.progress_callback):
-                                await self.progress_callback({"crawled": pages_crawled, "total": self.max_pages, "url": url})
+                                await self.progress_callback({"crawled": pages_crawled, "total": active_total, "url": url})
                             else:
-                                self.progress_callback({"crawled": pages_crawled, "total": self.max_pages, "url": url})
+                                self.progress_callback({"crawled": pages_crawled, "total": active_total, "url": url})
 
                         # Periodic database flush (batch commits for speed)
                         if pages_crawled % 10 == 0:
@@ -415,6 +416,17 @@ class CrawlEngine:
 
         # Final flush of any pending writes
         await self.database.flush()
+
+        # Notify progress callback that crawl completed and analysis begins
+        if self.progress_callback:
+            try:
+                cb_payload = {"crawled": pages_crawled, "total": pages_crawled, "url": "Crawl complete. Analyzing pages...", "status": "analyzing"}
+                if asyncio.iscoroutinefunction(self.progress_callback):
+                    await self.progress_callback(cb_payload)
+                else:
+                    self.progress_callback(cb_payload)
+            except Exception:
+                pass
 
         await self.database.update_audit(
             audit_id,

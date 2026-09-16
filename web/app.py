@@ -131,8 +131,10 @@ async def run_audit_background(audit_id: str, url: str, config, db_path: str):
         async with Database(db_path) as db:
             def progress_callback(data):
                 if audit_id in ws_connections:
+                    status_val = data.get("status", "crawling")
                     message = {
-                        "type": "progress",
+                        "type": "status" if status_val == "analyzing" else "progress",
+                        "status": status_val,
                         "crawled": data.get("crawled", 0),
                         "total": data.get("total", 0),
                         "url": data.get("url", "")
@@ -190,7 +192,14 @@ async def run_audit_background(audit_id: str, url: str, config, db_path: str):
                 message = {"type": "complete", "audit_id": audit_id}
                 for ws in ws_connections[audit_id]:
                     try:
-                        asyncio.create_task(ws.send_json(message))
+                        async def send_complete_and_close(sock):
+                            try:
+                                await sock.send_json(message)
+                                await asyncio.sleep(0.3)
+                                await sock.close(code=1000, reason="Crawl complete")
+                            except Exception:
+                                pass
+                        asyncio.create_task(send_complete_and_close(ws))
                     except Exception:
                         pass
     except Exception as e:

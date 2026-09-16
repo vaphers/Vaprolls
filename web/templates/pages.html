@@ -100,25 +100,58 @@
             
             <!-- Master Table Container (Upper Split, Zero Padding, Legible Font Size) -->
             <div class="flex-1 min-h-[80px] overflow-auto select-none bg-white" id="master-table-container">
-                <table class="w-full border-collapse text-left font-sans text-[13.5px]" id="master-url-table">
-                    <thead class="sticky top-0 bg-white z-10 border-b-2 border-[#D1D5DB] shadow-none">
+                <table class="w-full border-collapse text-left font-sans text-[13px]" id="master-url-table">
+                    <thead class="sticky top-0 bg-[#F8F9FA] z-10 border-b-2 border-[#D1D5DB] shadow-none select-none">
                         <tr class="text-black uppercase tracking-wider text-xs font-bold bg-[#F8F9FA]">
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-12 text-center">#</th>
-                            <th class="py-2 px-3 border-r border-[#D1D5DB] min-w-[360px]">Address</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Content Type</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-24 text-center">Status Code</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-28">Status</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Indexability</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-36">Indexability Status</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-32">Hash</th>
-                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] w-24 text-right">Length</th>
-                            <th class="py-2 px-3 border-r border-[#D1D5DB] min-w-[260px]">Canonical Link Element</th>
-                            <th class="py-2 px-3 min-w-[300px]">URL Encoded Address</th>
+                            <th class="py-2 px-2 border-r border-[#D1D5DB] text-center" style="width: 55px; min-width: 40px;" data-col="0">
+                                <div class="overflow-hidden">#</div>
+                                <div class="col-resizer" data-col="0" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-3 border-r border-[#D1D5DB]" style="width: 440px; min-width: 180px;" data-col="1">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Address</span></div>
+                                <div class="col-resizer" data-col="1" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB]" style="width: 140px; min-width: 80px;" data-col="2">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Content Type</span></div>
+                                <div class="col-resizer" data-col="2" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2 border-r border-[#D1D5DB] text-center" style="width: 105px; min-width: 70px;" data-col="3">
+                                <div class="flex items-center justify-center overflow-hidden"><span>Status Code</span></div>
+                                <div class="col-resizer" data-col="3" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB]" style="width: 110px; min-width: 70px;" data-col="4">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Status</span></div>
+                                <div class="col-resizer" data-col="4" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB]" style="width: 130px; min-width: 80px;" data-col="5">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Indexability</span></div>
+                                <div class="col-resizer" data-col="5" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB]" style="width: 170px; min-width: 90px;" data-col="6">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Indexability Status</span></div>
+                                <div class="col-resizer" data-col="6" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB]" style="width: 120px; min-width: 80px;" data-col="7">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Hash</span></div>
+                                <div class="col-resizer" data-col="7" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-2.5 border-r border-[#D1D5DB] text-right" style="width: 95px; min-width: 60px;" data-col="8">
+                                <div class="flex items-center justify-end overflow-hidden"><span>Length</span></div>
+                                <div class="col-resizer" data-col="8" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-3 border-r border-[#D1D5DB]" style="width: 320px; min-width: 140px;" data-col="9">
+                                <div class="flex items-center justify-between overflow-hidden"><span>Canonical Link Element</span></div>
+                                <div class="col-resizer" data-col="9" title="Drag to resize column | Double click to reset"></div>
+                            </th>
+                            <th class="py-2 px-3" style="width: 360px; min-width: 140px;" data-col="10">
+                                <div class="flex items-center justify-between overflow-hidden"><span>URL Encoded Address</span></div>
+                                <div class="col-resizer" data-col="10" title="Drag to resize column | Double click to reset"></div>
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-[#D1D5DB] text-black bg-white">
+                    <tbody class="text-black bg-white">
                         {% for page in pages %}
-                        <tr class="url-row hover:bg-[#F3F4F6] cursor-pointer transition-colors {% if loop.first %}selected-row bg-[#E5E7EB]{% endif %}"
+                        <tr class="url-row cursor-pointer transition-colors {% if loop.first %}selected-row{% endif %}"
                             data-page-id="{{ page.id }}"
                             data-url="{{ page.url }}"
                             data-status-code="{{ page.status_code }}"
@@ -150,10 +183,10 @@
                             onclick="selectPageRow(this, {{ page.id }})">
                             
                             <!-- 1. # -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-center font-bold text-black align-top">{{ loop.index }}</td>
+                            <td class="py-1.5 px-2 border-r border-[#E5E7EB] text-center font-bold text-black align-top tabular-nums text-xs">{{ loop.index }}</td>
                             
                             <!-- 2. Address (Full URL, wrapped if long, NO cut off, readable black text) -->
-                            <td class="py-1.5 px-3 border-r border-[#D1D5DB] text-[13.5px] align-top break-all whitespace-normal select-all font-normal text-black">
+                            <td class="py-1.5 px-3 border-r border-[#E5E7EB] text-[13.5px] align-top break-all whitespace-normal select-all font-normal text-black">
                                 <div class="flex items-start gap-1.5">
                                     <a href="{{ page.url }}" target="_blank" rel="noopener noreferrer" class="text-black hover:text-blue-600 shrink-0 mt-0.5" onclick="event.stopPropagation()" title="Open URL in new tab">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
@@ -163,26 +196,26 @@
                             </td>
 
                             <!-- 3. Content Type -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs break-all whitespace-normal">{{ page.content_type }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] text-black align-top text-xs break-all whitespace-normal font-mono">{{ page.content_type }}</td>
                             
                             <!-- 4. Status Code -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-center align-top font-bold text-xs">
+                            <td class="py-1.5 px-2 border-r border-[#E5E7EB] text-center align-top">
                                 {% if page.status_code == 200 %}
-                                <span class="text-[#15803D]">200</span>
+                                <span class="status-pill-200">200</span>
                                 {% elif page.status_code >= 300 and page.status_code < 400 %}
-                                <span class="text-[#B45309]">{{ page.status_code }}</span>
+                                <span class="status-pill-3xx">{{ page.status_code }}</span>
                                 {% elif page.status_code >= 400 %}
-                                <span class="text-[#B91C1C]">{{ page.status_code }}</span>
+                                <span class="status-pill-4xx">{{ page.status_code }}</span>
                                 {% else %}
-                                <span class="text-black">{{ page.status_code }}</span>
+                                <span class="status-pill-other">{{ page.status_code }}</span>
                                 {% endif %}
                             </td>
 
                             <!-- 5. Status -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs truncate">{{ page.status }}</td>
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] text-black align-top text-xs truncate">{{ page.status }}</td>
 
                             <!-- 6. Indexability -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] align-top text-xs truncate">
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] align-top text-xs truncate">
                                 {% if page.indexability == 'Indexable' %}
                                 <span class="inline-flex items-center gap-1.5 text-[#15803D] font-bold">
                                     <span class="w-2 h-2 bg-[#15803D] shrink-0"></span>
@@ -197,22 +230,22 @@
                             </td>
 
                             <!-- 7. Indexability Status -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-black align-top text-xs truncate font-medium" title="{{ page.indexability_status }}">
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] text-black align-top text-xs truncate font-medium" title="{{ page.indexability_status }}">
                                 {{ page.indexability_status }}
                             </td>
 
                             <!-- 8. Hash -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-xs text-black align-top truncate" title="{{ page.content_hash }}">
-                                {{ page.content_hash[:12] }}
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] text-xs text-black align-top truncate font-mono" title="{{ page.content_hash }}">
+                                {{ page.content_hash[:12] if page.content_hash else '—' }}
                             </td>
 
                             <!-- 9. Length -->
-                            <td class="py-1.5 px-2.5 border-r border-[#D1D5DB] text-right text-black font-semibold align-top text-xs">
+                            <td class="py-1.5 px-2.5 border-r border-[#E5E7EB] text-right text-black font-semibold align-top text-xs tabular-nums">
                                 {{ page.length or 0 }}
                             </td>
 
                             <!-- 10. Canonical Link Element (Full wrapped, no cut off) -->
-                            <td class="py-1.5 px-3 border-r border-[#D1D5DB] text-xs text-black align-top break-all whitespace-normal select-all" title="{{ page.canonical_url }}">
+                            <td class="py-1.5 px-3 border-r border-[#E5E7EB] text-xs text-black align-top break-all whitespace-normal select-all" title="{{ page.canonical_url }}">
                                 {{ page.canonical_url or '—' }}
                             </td>
 
@@ -927,6 +960,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pid = firstRow.dataset.pageId;
         selectPageRow(firstRow, parseInt(pid, 10));
     }
+    initColumnResizers();
 });
 
 // ==========================================
@@ -1038,9 +1072,98 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('mousemove', onSideDrag);
         document.addEventListener('touchmove', onSideDrag, { passive: false });
         document.addEventListener('mouseup', stopSideDrag);
-        document.addEventListener('touchend', stopSideDrag);
+        sideResizer.addEventListener('touchend', stopSideDrag);
     }
 })();
+
+// ==========================================
+// COLUMN RESIZING LOGIC
+// ==========================================
+function initColumnResizers() {
+    const table = document.getElementById('master-url-table');
+    if (!table) return;
+
+    const ths = table.querySelectorAll('thead th');
+    const storageKey = 'seo_spider_col_widths_v2';
+    let savedWidths = {};
+    try {
+        savedWidths = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch(e) {}
+
+    // Apply saved widths
+    ths.forEach((th, idx) => {
+        const saved = savedWidths[idx];
+        if (saved && saved >= 35) {
+            th.style.width = saved + 'px';
+            th.style.minWidth = saved + 'px';
+        }
+    });
+
+    // Attach resizer events to each column handle
+    table.querySelectorAll('.col-resizer').forEach(resizer => {
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const th = resizer.parentElement;
+            const startX = e.pageX;
+            const startWidth = th.offsetWidth;
+            const colIdx = parseInt(resizer.getAttribute('data-col') || '0', 10);
+
+            resizer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            function onMouseMove(e) {
+                const diff = e.pageX - startX;
+                const minW = parseInt(th.style.minWidth || '40', 10);
+                const newWidth = Math.max(minW || 40, startWidth + diff);
+                th.style.width = newWidth + 'px';
+                th.style.minWidth = newWidth + 'px';
+            }
+
+            function onMouseUp() {
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+
+                // Save all current widths to localStorage
+                const currentWidths = {};
+                ths.forEach((h, i) => {
+                    currentWidths[i] = h.offsetWidth;
+                });
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(currentWidths));
+                } catch(err) {}
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Double-click resizer to reset to default
+        resizer.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const th = resizer.parentElement;
+            const defaults = [55, 440, 140, 105, 110, 130, 170, 120, 95, 320, 360];
+            const colIdx = parseInt(resizer.getAttribute('data-col') || '0', 10);
+            const defW = defaults[colIdx] || 150;
+            th.style.width = defW + 'px';
+            th.style.minWidth = defW + 'px';
+
+            const currentWidths = {};
+            ths.forEach((h, i) => {
+                currentWidths[i] = h.offsetWidth;
+            });
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(currentWidths));
+            } catch(err) {}
+        });
+    });
+}
 
 </script>
 {% endblock %}

@@ -192,8 +192,8 @@
             if (pBar) pBar.style.width = '100%';
             if (pText) pText.textContent = 'COMPLETE (100%)';
             setTimeout(() => {
-                window.location.href = `/?audit_id=${auditId}`;
-            }, 600);
+                window.location.href = `/?audit_id=${auditId}&tab=all&t=${Date.now()}`;
+            }, 500);
         }
 
         crawlWs.onmessage = (evt) => {

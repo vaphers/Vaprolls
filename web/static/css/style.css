@@ -125,6 +125,123 @@ a, button, tr {
 
 /* Table Selection */
 .selected-row {
-    background-color: #E5E7EB !important;
+    background-color: #E2E8F0 !important;
+    box-shadow: inset 3px 0 0 0 #000000 !important;
     color: #000000 !important;
 }
+
+/* Master Table Layout & Column Resizing */
+#master-url-table {
+    table-layout: fixed;
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#master-url-table th {
+    background-color: #F8F9FA !important;
+    position: relative;
+    user-select: none;
+    border-bottom: 2px solid #D1D5DB !important;
+    border-right: 1px solid #D1D5DB !important;
+    white-space: nowrap;
+    overflow: hidden;
+    color: #000000 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+
+.col-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 25;
+    transition: background-color 100ms ease;
+}
+
+#master-url-table th:hover .col-resizer {
+    background-color: #9CA3AF;
+}
+
+.col-resizer:hover,
+.col-resizer.resizing {
+    background-color: #000000 !important;
+}
+
+#master-url-table tbody tr {
+    border-bottom: 1px solid #E5E7EB;
+    transition: background-color 100ms ease;
+}
+
+#master-url-table tbody tr:nth-child(even) {
+    background-color: #FAFAFB;
+}
+
+#master-url-table tbody tr:nth-child(odd) {
+    background-color: #FFFFFF;
+}
+
+#master-url-table tbody tr:hover {
+    background-color: #F1F5F9 !important;
+}
+
+#master-url-table td {
+    border-right: 1px solid #E5E7EB;
+    border-bottom: 1px solid #E5E7EB;
+    font-size: 13.5px !important;
+    line-height: 1.45;
+}
+
+/* Status Badges */
+.status-pill-200 {
+    display: inline-block;
+    padding: 1px 6px;
+    background-color: #DCFCE7;
+    color: #15803D;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid #86EFAC;
+}
+
+.status-pill-3xx {
+    display: inline-block;
+    padding: 1px 6px;
+    background-color: #FEF3C7;
+    color: #B45309;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid #FDE68A;
+}
+
+.status-pill-4xx {
+    display: inline-block;
+    padding: 1px 6px;
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid #FCA5A5;
+}
+
+.status-pill-other {
+    display: inline-block;
+    padding: 1px 6px;
+    background-color: #F3F4F6;
+    color: #000000;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid #D1D5DB;
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+

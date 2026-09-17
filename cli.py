@@ -63,6 +63,41 @@ except ImportError:
     CustomSearchAnalyzer = None
 
 try:
+    from analyzers.content import ContentAnalyzer
+except ImportError:
+    ContentAnalyzer = None
+
+try:
+    from analyzers.accessibility import AccessibilityAnalyzer
+except ImportError:
+    AccessibilityAnalyzer = None
+
+try:
+    from analyzers.security_headers import SecurityHeadersAnalyzer
+except ImportError:
+    SecurityHeadersAnalyzer = None
+
+try:
+    from analyzers.sitemap_auditor import SitemapAuditor
+except ImportError:
+    SitemapAuditor = None
+
+try:
+    from analyzers.robots_auditor import RobotsAuditor
+except ImportError:
+    RobotsAuditor = None
+
+try:
+    from analyzers.social_meta import SocialMetaAnalyzer
+except ImportError:
+    SocialMetaAnalyzer = None
+
+try:
+    from analyzers.pagination_auditor import PaginationAuditor
+except ImportError:
+    PaginationAuditor = None
+
+try:
     from analyzers.log_analyzer import LogFileAnalyzer
 except ImportError:
     LogFileAnalyzer = None
@@ -76,6 +111,11 @@ try:
     from services.gsc_client import GSCClient
 except ImportError:
     GSCClient = None
+
+try:
+    from services.crux_client import CruxClient
+except ImportError:
+    CruxClient = None
 
 try:
     from reports.generator import ReportGenerator
@@ -99,6 +139,14 @@ async def run_audit(args):
         config.CRAWL_DELAY = args.delay
     if args.no_js:
         config.JS_RENDER_ENABLED = False
+    if getattr(args, 'crawl_subdomains', False):
+        config.CRAWL_SUBDOMAINS = True
+    if getattr(args, 'allowed_domains', None):
+        config.ALLOWED_DOMAINS = args.allowed_domains
+    if getattr(args, 'max_depth', None):
+        config.MAX_CRAWL_DEPTH = args.max_depth
+    if getattr(args, 'psi_key', None):
+        config.PSI_API_KEY = args.psi_key
         
     # Enterprise Crawl Mode & Scope
     if getattr(args, 'mode', None):
@@ -162,6 +210,13 @@ async def run_audit(args):
         if HreflangAnalyzer: analyzers.append(HreflangAnalyzer(db, audit_id))
         if JsSeoAnalyzer: analyzers.append(JsSeoAnalyzer(db, audit_id))
         if CustomSearchAnalyzer: analyzers.append(CustomSearchAnalyzer(db, audit_id))
+        if ContentAnalyzer: analyzers.append(ContentAnalyzer(db, audit_id))
+        if AccessibilityAnalyzer: analyzers.append(AccessibilityAnalyzer(db, audit_id))
+        if SecurityHeadersAnalyzer: analyzers.append(SecurityHeadersAnalyzer(db, audit_id))
+        if SitemapAuditor: analyzers.append(SitemapAuditor(db, audit_id))
+        if RobotsAuditor: analyzers.append(RobotsAuditor(db, audit_id))
+        if SocialMetaAnalyzer: analyzers.append(SocialMetaAnalyzer(db, audit_id))
+        if PaginationAuditor: analyzers.append(PaginationAuditor(db, audit_id))
         
         for analyzer in analyzers:
             analyzer_name = analyzer.__class__.__name__
@@ -182,6 +237,19 @@ async def run_audit(args):
             gsc_res = await gsc.fetch_and_store_performance(url)
             print(f"  GSC rows pulled: {gsc_res.get('rows_ingested', 0)}")
             
+        # Optional PageSpeed Insights / CrUX CWV
+        if getattr(args, 'psi_key', None) and CruxClient:
+            print("\nPulling Google PageSpeed Insights & Core Web Vitals...")
+            crux = CruxClient(db, audit_id, api_key=args.psi_key)
+            pages = await db.get_pages(audit_id)
+            sample_urls = [p['url'] for p in pages if p.get('crawl_depth') == 0]
+            sample_urls += [p['url'] for p in sorted(pages, key=lambda x: x.get('unique_inlinks', 0), reverse=True)[:9]]
+            sample_urls = list(dict.fromkeys(sample_urls))[:10]
+            if sample_urls:
+                print(f"  Fetching PSI metrics for {len(sample_urls)} priority URLs...")
+                psi_results = await crux.batch_fetch_metrics(sample_urls)
+                print(f"  PSI metrics successfully captured for {len(psi_results)} URLs.")
+
         # Summary
         summary = await db.get_audit_summary(audit_id)
         
@@ -354,6 +422,35 @@ async def run_compare(args):
             print(f"Comparison error: {e}")
 
 
+async def run_schedule(args):
+    from scheduler import CrawlScheduler
+    config = get_config()
+    if args.max_pages:
+        config.MAX_PAGES = args.max_pages
+
+    db_path = config.DB_PATH
+    async with Database(db_path) as db:
+        scheduler = CrawlScheduler(db)
+        print(f"\nStarting scheduled run for {args.url} (Frequency: {args.every})...")
+        res = await scheduler.run_and_compare(args.url, config)
+        print(f"\nCompleted run for {res['domain']} (Audit ID: {res['audit_id']})")
+        print(f"Health Score: {res['health_score']:.1f}/100")
+
+        alert = res.get('regression_alert')
+        if alert:
+            print("\n" + "="*50)
+            print(f"REGRESSION AUDIT STATUS: [{alert['status']}]")
+            print("="*50)
+            if alert['has_regression']:
+                for reg in alert['regressions']:
+                    print(f"  * {reg}")
+            else:
+                print("  [OK] No SEO regressions detected compared to baseline!")
+            print("="*50)
+        else:
+            print("\nBaseline created. Future scheduled runs will compare regressions against this baseline.")
+
+
 def main_cli(args=None):
     parser = argparse.ArgumentParser(description="SEO Auditor CLI")
     parser.add_argument('--verbose', action='store_true', help="Enable debug logging")
@@ -380,6 +477,10 @@ def main_cli(args=None):
     audit_parser.add_argument('--proxy', help='HTTP/SOCKS5 proxy address')
     audit_parser.add_argument('--log-file', help='Path to server access log file to analyze')
     audit_parser.add_argument('--gsc-token', help='Google Search Console OAuth token for organic metrics')
+    audit_parser.add_argument('--psi-key', help='Google PageSpeed Insights API key for Core Web Vitals')
+    audit_parser.add_argument('--crawl-subdomains', action='store_true', help='Include subdomains in crawl scope')
+    audit_parser.add_argument('--allowed-domains', action='append', help='Additional domains to include in crawl scope')
+    audit_parser.add_argument('--max-depth', type=int, help='Maximum crawl depth')
     
     # List command
     subparsers.add_parser('list', help='List previous audits')
@@ -393,6 +494,12 @@ def main_cli(args=None):
     compare_parser = subparsers.add_parser('compare', help='Compare two audits (migration/staging diffing)')
     compare_parser.add_argument('baseline_id', help='Baseline / Pre-migration audit ID')
     compare_parser.add_argument('current_id', help='Current / Post-migration audit ID')
+
+    # Schedule command
+    schedule_parser = subparsers.add_parser('schedule', help='Run automated crawl with regression detection')
+    schedule_parser.add_argument('url', help='The URL to audit')
+    schedule_parser.add_argument('--every', choices=['daily', 'weekly', 'monthly', 'once'], default='once', help='Crawl schedule frequency')
+    schedule_parser.add_argument('--max-pages', type=int, help='Maximum number of pages to crawl')
     
     parsed_args = parser.parse_args(args)
     
@@ -412,6 +519,8 @@ def main_cli(args=None):
             asyncio.run(run_report(parsed_args))
         elif parsed_args.command == 'compare':
             asyncio.run(run_compare(parsed_args))
+        elif parsed_args.command == 'schedule':
+            asyncio.run(run_schedule(parsed_args))
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
         sys.exit(1)

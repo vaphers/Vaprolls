@@ -17,27 +17,32 @@ Vaprolls is a high-density, single-page technical SEO Spider and URL Explorer. I
      ├─────────────────────────────────────┴───► [Raw HTML / Headers]
      ▼                                                  │
 [Analyzers Pipeline] ◄──────────────────────────────────┘
-  ├─ Technical Analyzer (Status, MIME, Canonicals, Robots)
-  ├─ On-Page Analyzer (Title, Meta, Headings, Word Count)
-  ├─ Link Analyzer (Inlinks, Outlinks, Internal/External)
-  ├─ Media Analyzer (Images, Alt Text, Lazy Load, Sizes)
-  └─ Schema Analyzer (JSON-LD, Microdata, Structured Data)
+  ├─ Technical, On-Page, and Directives Analyzers
+  ├─ Link Architecture & PageRank Graph Engine
+  ├─ Media, Images, and Responsive Asset Auditing
+  ├─ Security, HTTPS, and Security Headers Validation
+  ├─ Structured Data, Open Graph, and Twitter Cards
+  ├─ Internationalization (Hreflang) & Pagination
+  ├─ Accessibility (WCAG 2.0/2.1/2.2) Auditing
+  ├─ Performance, Core Web Vitals, and CrUX Telemetry
+  ├─ JavaScript SEO & Dynamic DOM Diffing
+  └─ Content Quality, Readability, and SimHash Duplicate Detection
      │
      ▼
-[Database Layer] (SQLite WAL Mode: audits, pages, links, images, issues)
+[Database Layer] (SQLite WAL Mode: 18 relational tables)
      │
      ├─► [Real-Time WebSocket Streamer] ──► [UI Progress Bar]
      ▼
 [Master Enrichment Engine] (Unifies Pages + Discovered Assets + Links)
      │
      ▼
-[Screaming Frog Single-Page Interface]
-  ├─ Top Command Bar (Start / Stop Crawl, Switcher, Export)
-  ├─ Category Tabs Bar (All URLs, Internal, External, etc.)
-  ├─ Secondary Filter Bar (Include Regex, Exclude Regex, Live Search)
-  ├─ Master Spreadsheet (11 Essential Columns, Full URL Wrapping)
-  ├─ Draggable Bottom Inspector (URL Details, Inlinks, Images, SERP, Headers)
-  └─ Draggable Right Panel (URL-Specific SEO Profile & URL-Specific Issues)
+[Spider Explorer Single-Page Interface]
+  ├─ Top Command Bar (Start / Stop Crawl, Mode Switcher, Quick Export)
+  ├─ Category Tabs Bar (22 Tabs grouped into Overview, On-Page, Technical, Links, Auditing, Assets)
+  ├─ Secondary Filter Bar (Include Regex, Exclude Regex, Live Search, Type Filter)
+  ├─ Master Spreadsheet (Sticky headers, sortable columns, full URL wrapping)
+  ├─ Draggable Bottom Inspector (URL Details, Inlinks, Outlinks, Images, SERP, Headers, Schema)
+  └─ Draggable Right Panel (Issues Summary, Site Structure Tree, Response Times, Depth, Segments)
 ```
 
 ---

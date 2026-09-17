@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from typing import Dict, Any, List, Set
 from database.db import Database
 
@@ -71,41 +71,50 @@ class PageRankAnalyzer:
         min_pr = min(pr) if pr else 0.0
         pr_range = max_pr - min_pr if max_pr > min_pr else 1.0
 
+        pr_updates = []
+        issues_to_add = []
+
         for i, url in enumerate(nodes):
             normalized_score = round(((pr[i] - min_pr) / pr_range) * 100.0, 2)
             page = url_to_page[url]
             page_id = page['id']
-            await self.db.update_page_pagerank(self.audit_id, page_id, normalized_score)
+            pr_updates.append((normalized_score, self.audit_id, page_id))
 
             # Issue Diagnostic 1: Equity Trap
             lower_url = url.lower()
             utility_terms = ['privacy', 'terms', 'cookie', 'legal', 'login', 'disclaimer']
             if any(term in lower_url for term in utility_terms) and normalized_score > 60.0:
-                await self.db.add_issue(
-                    audit_id=self.audit_id,
-                    page_id=page_id,
-                    url=url,
-                    category='links',
-                    severity='warning',
-                    issue_type='equity_trap',
-                    message=f"Utility page hoards high internal PageRank ({normalized_score}/100)",
-                    recommendation="Remove sitewide/footer links to low-priority utility pages or consolidate links so equity flows to conversion pages.",
-                    element=url
-                )
+                issues_to_add.append({
+                    'audit_id': self.audit_id,
+                    'page_id': page_id,
+                    'url': url,
+                    'category': 'links',
+                    'severity': 'warning',
+                    'issue_type': 'equity_trap',
+                    'message': f"Utility page hoards high internal PageRank ({normalized_score}/100)",
+                    'recommendation': "Remove sitewide/footer links to low-priority utility pages or consolidate links so equity flows to conversion pages.",
+                    'element': url
+                })
 
             # Issue Diagnostic 2: Low-Authority Target Page
             depth = page.get('crawl_depth', 0)
             if depth == 1 and normalized_score < 15.0 and len(in_links[i]) < 3:
-                await self.db.add_issue(
-                    audit_id=self.audit_id,
-                    page_id=page_id,
-                    url=url,
-                    category='links',
-                    severity='info',
-                    issue_type='low_internal_authority',
-                    message=f"Top-level page receives very low internal PageRank ({normalized_score}/100)",
-                    recommendation="Add contextual in-content links from high-authority pages to boost this URL's internal link equity.",
-                    element=url
-                )
+                issues_to_add.append({
+                    'audit_id': self.audit_id,
+                    'page_id': page_id,
+                    'url': url,
+                    'category': 'links',
+                    'severity': 'info',
+                    'issue_type': 'low_internal_authority',
+                    'message': f"Top-level page receives very low internal PageRank ({normalized_score}/100)",
+                    'recommendation': "Add contextual in-content links from high-authority pages to boost this URL's internal link equity.",
+                    'element': url
+                })
+
+        if pr_updates:
+            await self.db.update_pages_pagerank_batch(pr_updates)
+
+        if issues_to_add:
+            await self.db.add_issues_batch(issues_to_add)
 
         logger.info(f"Completed PageRank calculation for {N} pages in audit {self.audit_id}")

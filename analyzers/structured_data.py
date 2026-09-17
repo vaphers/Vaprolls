@@ -57,11 +57,24 @@ class StructuredDataAnalyzer:
                         continue
 
                     if isinstance(data, dict):
-                        self._validate_schema_object(data, page_id, url)
+                        await self._validate_schema_object(data, page_id, url)
                     elif isinstance(data, list):
                         for item in data:
                             if isinstance(item, dict):
-                                self._validate_schema_object(item, page_id, url)
+                                await self._validate_schema_object(item, page_id, url)
+
+            # Check for Microdata or RDFa
+            m_json = page.get('microdata_json')
+            if m_json:
+                try:
+                    m_data = json.loads(m_json)
+                    if m_data:
+                        pages_with_sd += 1
+                        for item in m_data:
+                            itype = item.get('type') or 'Microdata'
+                            schema_types_count[itype] = schema_types_count.get(itype, 0) + 1
+                except Exception:
+                    pass
 
         # Site-wide checks
         total_pages = len(pages)
@@ -75,13 +88,49 @@ class StructuredDataAnalyzer:
             if schema_types_count:
                 await self._add_issue(None, None, 'info', 'schema_distribution', "Schema types distribution", "Review schema types used across the site.", schema_types_count)
 
+    async def _validate_schema_object(self, data: dict, page_id: int, url: str):
+        context = data.get('@context', '')
+        if isinstance(context, list):
+            context = ' '.join(str(c) for c in context)
+        context_str = str(context).lower()
+        if 'schema.org' not in context_str:
+            await self._add_issue(
+                page_id, url, 'warning', 'schema_missing_context',
+                "Schema object missing valid @context='https://schema.org'",
+                "Set @context to 'https://schema.org' for valid JSON-LD parsing.",
+                data.get('@type')
+            )
 
-    def _validate_schema_object(self, data: dict, page_id: int, url: str):
-        context = data.get('@context')
-        if not context:
-            # We can't await inside sync method, so we should make this async or collect and await later.
-            # Let's just store a task or rewrite this to be async.
-            pass
+        stype = data.get('@type')
+        if not stype:
+            await self._add_issue(
+                page_id, url, 'warning', 'schema_missing_type',
+                "Schema object missing @type declaration",
+                "Specify a recognized schema.org @type for each structured data object.",
+                None
+            )
+            return
+
+        # Validate standard required properties by type
+        stypes = [stype] if isinstance(stype, str) else [str(t) for t in stype]
+        for t in stypes:
+            t_lower = t.lower()
+            if t_lower in ('article', 'newsarticle', 'blogposting'):
+                if not data.get('headline'):
+                    await self._add_issue(page_id, url, 'warning', 'schema_missing_property', f"{t} schema is missing required 'headline' property", "Add 'headline' to Article schema.", t)
+                if not data.get('datepublished') and not data.get('datePublished'):
+                    await self._add_issue(page_id, url, 'warning', 'schema_missing_property', f"{t} schema is missing 'datePublished'", "Add 'datePublished' ISO timestamp to Article schema.", t)
+            elif t_lower in ('product',):
+                if not data.get('name'):
+                    await self._add_issue(page_id, url, 'warning', 'schema_missing_property', "Product schema is missing required 'name' property", "Add 'name' property to Product schema.", t)
+                if not data.get('offers'):
+                    await self._add_issue(page_id, url, 'info', 'schema_missing_property', "Product schema missing 'offers' (pricing/availability)", "Add 'offers' object to Product schema for rich snippets.", t)
+            elif t_lower in ('breadcrumblist',):
+                if not data.get('itemListElement'):
+                    await self._add_issue(page_id, url, 'warning', 'schema_missing_property', "BreadcrumbList is missing 'itemListElement'", "Define breadcrumb hierarchy inside 'itemListElement'.", t)
+            elif t_lower in ('organization', 'localbusiness'):
+                if not data.get('name'):
+                    await self._add_issue(page_id, url, 'warning', 'schema_missing_property', f"{t} schema is missing 'name'", "Add organization/business name.", t)
             
     # Need to be async
     async def _add_issue(self, page_id: Optional[int], url: Optional[str], severity: str, issue_type: str, message: str, recommendation: str, element: Any = None):

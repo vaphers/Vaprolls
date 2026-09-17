@@ -305,13 +305,34 @@ class ReportGenerator:
         ]
         add_sheet("Images", ["Page URL", "Image URL", "Alt Text", "Has Dimensions", "Format"], images_rows)
         
-        # Keywords
-        keywords_rows = [
-            [kw.get("page_url"), kw.get("keyword"), kw.get("frequency"), kw.get("density"), kw.get("in_title"), kw.get("in_h1")]
-            for kw in data['keywords']
+        # Security Headers
+        sec_rows = [
+            [
+                p.get("url"), p.get("status_code"), p.get("hsts_header"), p.get("csp_header"),
+                p.get("x_content_type_options"), p.get("x_frame_options"), p.get("referrer_policy")
+            ]
+            for p in data['pages']
         ]
-        add_sheet("Keywords", ["Page URL", "Keyword", "Frequency", "Density", "In Title", "In H1"], keywords_rows)
-        
+        add_sheet("Security Headers", ["URL", "Status Code", "HSTS", "CSP", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy"], sec_rows)
+
+        # Social Meta (Open Graph & Twitter)
+        social_rows = [
+            [
+                p.get("url"), p.get("og_title"), p.get("og_description"), p.get("og_image"),
+                p.get("twitter_card"), p.get("twitter_title"), p.get("twitter_image")
+            ]
+            for p in data['pages']
+        ]
+        add_sheet("Social Meta", ["URL", "OG Title", "OG Description", "OG Image", "Twitter Card", "Twitter Title", "Twitter Image"], social_rows)
+
+        # Forms
+        forms = await self.db.get_forms(self.audit_id)
+        forms_rows = [
+            [f.get("page_url"), f.get("action_url"), f.get("method"), f.get("form_id"), f.get("has_password"), f.get("is_insecure")]
+            for f in forms
+        ]
+        add_sheet("Forms", ["Page URL", "Action URL", "Method", "Form ID", "Has Password", "Is Insecure"], forms_rows)
+
         file_path = self.output_dir / "report.xlsx"
         wb.save(file_path)
         return str(file_path.absolute())
@@ -412,9 +433,17 @@ class ReportGenerator:
         return str(file_path.absolute())
 
     async def generate_all(self) -> dict:
-        return {
+        results = {
             "html": await self.generate_html(),
             "csv": await self.generate_csv(),
             "excel": await self.generate_excel(),
             "docx": await self.generate_docx()
         }
+        try:
+            from .visualizer import LinkGraphVisualizer
+            vis = LinkGraphVisualizer(self.db, self.audit_id)
+            results["link_graph_html"] = await vis.export_d3_html(str(self.output_dir / "link_graph.html"))
+            results["link_graph_gexf"] = await vis.export_gexf(str(self.output_dir / "link_graph.gexf"))
+        except Exception as e:
+            logger.warning(f"Link graph export error: {e}")
+        return results

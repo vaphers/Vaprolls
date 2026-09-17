@@ -23,6 +23,19 @@ from crawler.engine import CrawlEngine
 from analyzers.technical import TechnicalAnalyzer
 from analyzers.onpage import OnPageAnalyzer
 from analyzers.links import LinkAnalyzer
+from web.enrichment import (
+    TAB_SCHEMAS,
+    parse_cookies_json,
+    enrich_base_page_data,
+    enrich_pages_master,
+    build_tab_dataset,
+    filter_and_sort_tab_rows,
+    build_issues_summary,
+    build_site_structure_tree,
+    build_response_times_buckets,
+    build_depth_distribution,
+    build_segments_summary
+)
 
 try: from analyzers.images import ImageAnalyzer
 except ImportError: ImageAnalyzer = None
@@ -48,6 +61,10 @@ try: from analyzers.js_seo import JsSeoAnalyzer
 except ImportError: JsSeoAnalyzer = None
 try: from analyzers.custom_search import CustomSearchAnalyzer
 except ImportError: CustomSearchAnalyzer = None
+try: from analyzers.content import ContentAnalyzer
+except ImportError: ContentAnalyzer = None
+try: from analyzers.accessibility import AccessibilityAnalyzer
+except ImportError: AccessibilityAnalyzer = None
 try: from reports.comparator import AuditComparator
 except ImportError: AuditComparator = None
 try: from reports.generator import ReportGenerator
@@ -68,6 +85,7 @@ def cleanup_all_crawl_data():
     active_audits.clear()
     PAGE_HEADERS_CACHE.clear()
     PAGE_TECH_CACHE.clear()
+    PAGE_RAW_HTML_CACHE.clear()
     try:
         db_path = get_config().DB_PATH
         if os.path.exists(db_path):
@@ -88,12 +106,18 @@ def cleanup_all_crawl_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure clean state with no lingering caches from previous sessions
-    logger.info("SEO Spider workspace starting up. Cleaning any stale data...")
-    cleanup_all_crawl_data()
+    # Startup
+    logger.info("SEO Spider workspace starting up...")
+    PAGE_HEADERS_CACHE.clear()
+    PAGE_TECH_CACHE.clear()
+    PAGE_RAW_HTML_CACHE.clear()
     yield
-    # Graceful Shutdown: close connections and wipe stored data
+    # Graceful Shutdown
     logger.info("SEO Spider workspace shutting down. Cleaning up active crawls and connections...")
+    for aid, task in list(active_audits.items()):
+        if not task.done():
+            logger.info(f"Canceling crawl task {aid}")
+            task.cancel()
     for aid, conns in list(ws_connections.items()):
         for ws in conns:
             try:
@@ -101,7 +125,10 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
     ws_connections.clear()
-    cleanup_all_crawl_data()
+    active_audits.clear()
+    PAGE_HEADERS_CACHE.clear()
+    PAGE_TECH_CACHE.clear()
+    PAGE_RAW_HTML_CACHE.clear()
     logger.info("SEO Spider workspace clean shutdown complete.")
 
 app = FastAPI(title="SEO Spider & URL Explorer", lifespan=lifespan)
@@ -167,6 +194,8 @@ async def run_audit_background(audit_id: str, url: str, config, db_path: str):
             if HreflangAnalyzer: analyzers.append(HreflangAnalyzer(db, audit_id))
             if JsSeoAnalyzer: analyzers.append(JsSeoAnalyzer(db, audit_id))
             if CustomSearchAnalyzer: analyzers.append(CustomSearchAnalyzer(db, audit_id))
+            if ContentAnalyzer: analyzers.append(ContentAnalyzer(db, audit_id))
+            if AccessibilityAnalyzer: analyzers.append(AccessibilityAnalyzer(db, audit_id))
             
             for analyzer in analyzers:
                 await analyzer.analyze()
@@ -595,237 +624,8 @@ def determine_asset_mime(url: str):
     if any(u.endswith(ext) for ext in ['.woff', '.woff2', '.ttf']): return 'font/woff2'
     return 'text/html; charset=utf-8'
 
-def enrich_pages_master(raw_pages, audit, raw_issues, all_links, all_images, all_sd):
-    inlinks_map = {}
-    outlinks_map = {}
-    extlinks_map = {}
-    parent_map = {}
-    for l in all_links:
-        target = (l.get('target_url') or '').rstrip('/')
-        src = l.get('source_url') or ''
-        pid = l.get('source_page_id')
-        if l.get('is_internal', True):
-            inlinks_map[target] = inlinks_map.get(target, 0) + 1
-            if target and target not in parent_map and src:
-                parent_map[target] = src
-            if pid:
-                outlinks_map[pid] = outlinks_map.get(pid, 0) + 1
-        else:
-            if pid:
-                extlinks_map[pid] = extlinks_map.get(pid, 0) + 1
+# Master page enrichment is provided by web.enrichment.enrich_base_page_data
 
-    img_map = {}
-    for img in all_images:
-        pid = img.get('page_id')
-        if pid:
-            img_map[pid] = img_map.get(pid, 0) + 1
-
-    sd_map = {}
-    for s in all_sd:
-        pid = s.get('page_id')
-        if pid:
-            sd_map[pid] = sd_map.get(pid, 0) + 1
-
-    issues_map = {}
-    for i in raw_issues:
-        pid = i.get('page_id')
-        if pid:
-            issues_map.setdefault(pid, []).append(i)
-
-    audit_domain = urlparse(audit.get('url', '') if audit else '').netloc
-
-    seen_urls = set()
-    enriched = []
-
-    # 1. Crawled HTML Pages
-    for p in raw_pages:
-        pid = p['id']
-        url = p.get('url') or ''
-        seen_urls.add(url)
-        norm_url = url.rstrip('/')
-        depth = p.get('crawl_depth') if p.get('crawl_depth') is not None else 0
-        sc = p.get('status_code') or 200
-        ct = p.get('content_type') or 'text/html; charset=utf-8'
-        mime = p.get('mime_type') or ct.split(';')[0].strip()
-        url_domain = urlparse(url).netloc
-        url_type = 'Internal' if (not url_domain or url_domain == audit_domain) else 'External'
-
-        canonical = (p.get('canonical_url') or '').strip()
-        h = p.get('content_hash') or hashlib.md5(url.encode()).hexdigest()[:16]
-        length = p.get('html_size') or 0
-
-        # Indexability & Indexability Status
-        if 400 <= sc < 500:
-            idx = "Non-Indexable"
-            idx_status = f"Client Error ({sc})"
-        elif sc >= 500:
-            idx = "Non-Indexable"
-            idx_status = f"Server Error ({sc})"
-        elif 300 <= sc < 400:
-            idx = "Non-Indexable"
-            idx_status = f"Redirect ({sc})"
-        elif canonical and canonical.rstrip('/') != norm_url:
-            idx = "Non-Indexable"
-            idx_status = "Canonicalised"
-        elif 'noindex' in (p.get('robots_meta') or '').lower():
-            idx = "Non-Indexable"
-            idx_status = "Noindex"
-        else:
-            idx = "Indexable"
-            idx_status = "OK"
-
-        parent = p.get('parent_url') or parent_map.get(norm_url) or (audit.get('url') if audit and depth == 0 else '')
-        if depth == 0 and not parent and audit:
-            parent = audit.get('url') or 'Direct Seed'
-
-        page_issues = issues_map.get(pid, [])
-        pg_type = classify_page_type(url, depth)
-
-        enriched.append({
-            'id': pid,
-            'url': url,
-            'url_type': url_type,
-            'status_code': sc,
-            'status': "OK" if sc == 200 else f"HTTP {sc}",
-            'content_type': ct,
-            'mime_type': mime,
-            'title': p.get('title') or '',
-            'meta_description': p.get('meta_description') or '',
-            'h1': p.get('h1') or '',
-            'canonical_url': canonical or '—',
-            'robots_directive': p.get('robots_meta') or ('index, follow' if idx == 'Indexable' else 'noindex, follow'),
-            'indexability': idx,
-            'indexability_status': idx_status,
-            'content_hash': h,
-            'length': length,
-            'url_encoded_address': urlparse(url).geturl(),
-            'crawl_depth': depth,
-            'parent_url': parent,
-            'inlinks_count': inlinks_map.get(norm_url, 0),
-            'outlinks_count': outlinks_map.get(pid, 0),
-            'external_links_count': extlinks_map.get(pid, 0),
-            'images_count': img_map.get(pid, 0),
-            'schema_count': sd_map.get(pid, 0),
-            'response_time_ms': p.get('response_time_ms') or 0,
-            'html_size': length,
-            'redirect_url': p.get('redirect_url') or '',
-            'final_url': p.get('redirect_url') or url,
-            'language': p.get('language') or 'en',
-            'page_type': pg_type,
-            'issues': page_issues,
-            'issues_count': len(page_issues)
-        })
-
-    # 2. Map Discovered Images (CDN, Shopify files, assets)
-    virtual_id = 100000
-    for img in all_images:
-        src = img.get('src')
-        if not src or src in seen_urls:
-            continue
-        seen_urls.add(src)
-        virtual_id += 1
-        img_domain = urlparse(src).netloc
-        url_type = 'Internal' if (not img_domain or img_domain == audit_domain) else 'External'
-        ct = determine_asset_mime(src)
-        h = hashlib.md5(src.encode()).hexdigest()[:16]
-        sz = img.get('file_size') or 0
-        enriched.append({
-            'id': virtual_id,
-            'url': src,
-            'url_type': url_type,
-            'status_code': 200,
-            'status': "OK",
-            'content_type': ct,
-            'mime_type': ct.split(';')[0].strip(),
-            'title': img.get('alt_text') or '',
-            'meta_description': '',
-            'h1': '',
-            'canonical_url': '—',
-            'robots_directive': '—',
-            'indexability': "Non-Indexable",
-            'indexability_status': "Resource / Image",
-            'content_hash': h,
-            'length': sz,
-            'url_encoded_address': src,
-            'crawl_depth': 1,
-            'parent_url': audit.get('url', '') if audit else '',
-            'inlinks_count': 1,
-            'outlinks_count': 0,
-            'external_links_count': 0,
-            'images_count': 0,
-            'schema_count': 0,
-            'response_time_ms': 0,
-            'html_size': sz,
-            'redirect_url': '',
-            'final_url': src,
-            'language': '—',
-            'page_type': 'Image Asset',
-            'issues': [],
-            'issues_count': 0
-        })
-
-    # 3. Map Discovered Links (External, CDN stylesheets, scripts, etc.)
-    for l in all_links:
-        tgt = l.get('target_url')
-        if not tgt or tgt in seen_urls:
-            continue
-        seen_urls.add(tgt)
-        virtual_id += 1
-        tgt_domain = urlparse(tgt).netloc
-        url_type = 'Internal' if (not tgt_domain or tgt_domain == audit_domain) else 'External'
-        ct = determine_asset_mime(tgt)
-        sc = l.get('status_code') or 200
-        h = hashlib.md5(tgt.encode()).hexdigest()[:16]
-        
-        if 'image' in ct: idx_status = "Resource / Image"
-        elif 'css' in ct: idx_status = "Resource / CSS"
-        elif 'javascript' in ct: idx_status = "Resource / JS"
-        elif url_type == 'External': idx_status = "External Link"
-        else: idx_status = "Discovered Link"
-
-        enriched.append({
-            'id': virtual_id,
-            'url': tgt,
-            'url_type': url_type,
-            'status_code': sc,
-            'status': "OK" if sc == 200 else f"HTTP {sc}",
-            'content_type': ct,
-            'mime_type': ct.split(';')[0].strip(),
-            'title': l.get('anchor_text') or '',
-            'meta_description': '',
-            'h1': '',
-            'canonical_url': '—',
-            'robots_directive': '—',
-            'indexability': "Non-Indexable" if url_type == 'External' or 'text/html' not in ct else "Indexable",
-            'indexability_status': idx_status,
-            'content_hash': h,
-            'length': 0,
-            'url_encoded_address': tgt,
-            'crawl_depth': 1,
-            'parent_url': l.get('source_url', ''),
-            'inlinks_count': 1,
-            'outlinks_count': 0,
-            'external_links_count': 0,
-            'images_count': 0,
-            'schema_count': 0,
-            'response_time_ms': 0,
-            'html_size': 0,
-            'redirect_url': '',
-            'final_url': tgt,
-            'language': '—',
-            'page_type': 'External Link' if url_type == 'External' else 'Resource',
-            'issues': [],
-            'issues_count': 0
-        })
-
-    # Encode address
-    for p in enriched:
-        try:
-            p['url_encoded_address'] = urllib.parse.quote(p['url'], safe='')
-        except Exception:
-            p['url_encoded_address'] = p['url']
-
-    return enriched
 
 def filter_and_sort_pages(pages, status='all', indexable='all', page_type='all', content_type='all', depth='all', word_count='all', issues='all', include=None, exclude=None, q=None, sort='status'):
     filtered = pages
@@ -1131,7 +931,7 @@ async def render_spider_workspace(
 
     ctx = get_context(
         request, target_audit, "pages",
-        pages=filtered_pages,
+        pages=filtered_pages[:50],
         total_pages=len(enriched_pages),
         filtered_count=len(filtered_pages),
         count_200=c_200,
@@ -1214,13 +1014,12 @@ async def get_page_inspector(audit_id: str, page_id: int):
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
         
-        all_links = await db.get_links(audit_id)
-        all_images = await db.get_images(audit_id)
-        all_sd = await db.get_structured_data(audit_id)
-        raw_issues = await db.get_issues(audit_id)
-
         # Handle virtual ID (assets/links)
         if page_id >= 100000:
+            all_links = await db.get_links(audit_id)
+            all_images = await db.get_images(audit_id)
+            all_sd = await db.get_structured_data(audit_id)
+            raw_issues = await db.get_issues(audit_id)
             raw_pages = await db.get_pages(audit_id)
             enriched_all = enrich_pages_master(raw_pages, audit, raw_issues, all_links, all_images, all_sd)
             found = next((p for p in enriched_all if p['id'] == page_id), None)
@@ -1245,31 +1044,11 @@ async def get_page_inspector(audit_id: str, page_id: int):
         if not page:
             raise HTTPException(status_code=404, detail="Page not found")
         
-        all_links = await db.get_links(audit_id)
-        page_norm = (page.get('url') or '').rstrip('/')
-        inlinks = [
-            {
-                'source_url': l.get('source_url', ''),
-                'anchor_text': l.get('anchor_text', '') or '—',
-                'is_internal': l.get('is_internal', True),
-                'status_code': l.get('status_code') or 200,
-                'nofollow': bool(l.get('nofollow'))
-            }
-            for l in all_links if (l.get('target_url') or '').rstrip('/') == page_norm
-        ][:100]
+        page_url = page.get('url') or ''
+        inlinks = await db.get_page_inlinks(audit_id, page_url, limit=100)
+        outlinks = await db.get_page_outlinks(audit_id, page_id, limit=100)
         
-        outlinks = [
-            {
-                'target_url': l.get('target_url', ''),
-                'anchor_text': l.get('anchor_text', '') or '—',
-                'is_internal': l.get('is_internal', True),
-                'status_code': l.get('status_code') or 200,
-                'nofollow': bool(l.get('nofollow'))
-            }
-            for l in all_links if l.get('source_page_id') == page_id
-        ][:100]
-        
-        db_images = await db.get_images(audit_id)
+        db_images = await db.get_images(audit_id, page_id=page_id)
         images = [
             {
                 'src': img.get('src', ''),
@@ -1279,20 +1058,20 @@ async def get_page_inspector(audit_id: str, page_id: int):
                 'file_size': img.get('file_size'),
                 'is_lazy_loaded': bool(img.get('is_lazy_loaded'))
             }
-            for img in db_images if img.get('page_id') == page_id
+            for img in db_images
         ][:100]
         
-        db_sd = await db.get_structured_data(audit_id)
+        db_sd = await db.get_structured_data(audit_id, page_id=page_id)
         sd_list = [
             {
                 'schema_type': s.get('schema_type', 'Entity'),
                 'data_json': s.get('data_json', '{}'),
                 'is_valid': bool(s.get('is_valid', True))
             }
-            for s in db_sd if s.get('page_id') == page_id
+            for s in db_sd
         ]
         
-        db_issues = await db.get_issues(audit_id)
+        db_issues = await db.get_issues(audit_id, page_id=page_id)
         issues = [
             {
                 'severity': i.get('severity', 'info'),
@@ -1301,15 +1080,47 @@ async def get_page_inspector(audit_id: str, page_id: int):
                 'message': i.get('message', ''),
                 'recommendation': i.get('recommendation', '')
             }
-            for i in db_issues if i.get('page_id') == page_id
+            for i in db_issues
         ]
         
+        # New Phase 1 tables queries for inspector expansion
+        db_resources = await db.get_resources(audit_id, page_id=page_id)
+        db_console_logs = await db.get_console_logs(audit_id, page_id=page_id)
+        db_access_viols = await db.get_accessibility_violations(audit_id, page_id=page_id)
+        db_pagination = await db.get_pagination_tags(audit_id, page_id=page_id)
+        db_hreflang = await db.get_hreflang_tags(audit_id, page_id=page_id)
+        cookies = parse_cookies_json(page.get('cookies_json'))
+        
+        # Duplicate details
+        duplicates = await db.get_near_duplicates(audit_id, page_id=page_id)
+        dup_matches = []
+        if duplicates:
+            dup_matches = duplicates
+        elif page.get('closest_duplicate_url'):
+            dup_matches.append({
+                'url': page.get('closest_duplicate_url'),
+                'similarity': page.get('closest_duplicate_similarity', 0.0),
+                'content_hash': page.get('content_near_duplicate_hash', '')
+            })
+
+        duplicate_details = {
+            'closest_duplicate_url': page.get('closest_duplicate_url') or '',
+            'similarity': page.get('closest_duplicate_similarity') or 0.0,
+            'near_duplicate_count': page.get('near_duplicate_count') or len(dup_matches),
+            'content_hash': page.get('content_near_duplicate_hash') or '',
+            'matches': dup_matches
+        }
+
         # Enriched page attributes
-        enriched = enrich_pages_master([page], audit, db_issues, all_links, db_images, db_sd)
+        enriched = enrich_pages_master([page], audit, db_issues, [], db_images, db_sd)
         enriched_p = enriched[0] if enriched else page
         
         # HTTP headers
         headers = await get_page_http_headers_safe(page.get('url', ''), page.get('content_type'))
+
+        raw_html = page.get('raw_html') or ''
+        if not raw_html and page.get('url') and 'text/html' in (page.get('content_type') or ''):
+            raw_html = await get_page_raw_html_safe(page.get('url'))
 
     return JSONResponse({
         "page": enriched_p,
@@ -1323,8 +1134,152 @@ async def get_page_inspector(audit_id: str, page_id: int):
             "title": enriched_p.get('title') or 'No title set',
             "url": enriched_p.get('url', ''),
             "description": enriched_p.get('meta_description') or 'No meta description set for this webpage.'
-        }
+        },
+        "resources": db_resources,
+        "rendered_html": page.get('rendered_html') or '',
+        "console_logs": db_console_logs,
+        "raw_html": raw_html,
+        "cookies": cookies,
+        "duplicate_details": duplicate_details,
+        "accessibility_details": db_access_viols,
+        "pagination": db_pagination,
+        "hreflang": db_hreflang
     })
+
+@app.get("/api/audit/{audit_id}/tab/{tab_key}")
+async def get_audit_tab_data(
+    audit_id: str,
+    tab_key: str,
+    sort_by: Optional[str] = Query(None),
+    sort_dir: Optional[str] = Query('asc'),
+    include: Optional[str] = Query(None),
+    exclude: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50000, ge=1, le=50000)
+):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        
+        raw_pages = await db.get_pages(audit_id)
+        raw_issues = await db.get_issues(audit_id)
+        all_links = await db.get_links(audit_id)
+        all_images = await db.get_images(audit_id)
+        all_sd = await db.get_structured_data(audit_id)
+        
+        clean_tab = tab_key.lower().replace('-', '_').strip()
+        headings = await db.get_headings(audit_id=audit_id) if clean_tab in ('internal', 'h1', 'h2') else []
+        pagination_tags = await db.get_pagination_tags(audit_id) if clean_tab == 'pagination' else []
+        hreflang_tags = await db.get_hreflang_tags(audit_id) if clean_tab == 'hreflang' else []
+        sitemap_entries = await db.get_sitemap_entries(audit_id) if clean_tab == 'sitemaps' else []
+        accessibility_violations = await db.get_accessibility_violations(audit_id) if clean_tab == 'accessibility' else []
+
+    enriched = enrich_base_page_data(raw_pages, audit, raw_issues, all_links, all_images, all_sd)
+    dataset = build_tab_dataset(
+        enriched,
+        tab_key=tab_key,
+        headings=headings,
+        pagination_tags=pagination_tags,
+        hreflang_tags=hreflang_tags,
+        structured_data=all_sd,
+        sitemap_entries=sitemap_entries,
+        accessibility_violations=accessibility_violations,
+        images_records=all_images
+    )
+    
+    paginated_rows, total = filter_and_sort_tab_rows(
+        dataset['rows'],
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        include=include,
+        exclude=exclude,
+        page=page,
+        page_size=page_size
+    )
+    
+    return JSONResponse({
+        "tab": dataset['tab'],
+        "columns": dataset['columns'],
+        "dynamic_columns": dataset['dynamic_columns'],
+        "rows": paginated_rows,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    })
+
+@app.get("/api/audit/{audit_id}/right-panel/issues")
+async def get_right_panel_issues(audit_id: str):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_issues = await db.get_issues(audit_id)
+        raw_pages = await db.get_pages(audit_id)
+        total_pages = len(raw_pages)
+    
+    issues_summary = build_issues_summary(raw_issues, total_pages, raw_pages)
+    return JSONResponse({"issues": issues_summary})
+
+@app.get("/api/audit/{audit_id}/right-panel/site-structure")
+async def get_right_panel_site_structure(audit_id: str):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_pages = await db.get_pages(audit_id)
+    
+    audit_domain = urlparse(audit.get('url', '') if audit else '').netloc
+    internal_urls = [
+        p.get('url') for p in raw_pages
+        if p.get('url') and (not urlparse(p.get('url')).netloc or urlparse(p.get('url')).netloc == audit_domain)
+    ]
+    tree = build_site_structure_tree(internal_urls)
+    return JSONResponse({"tree": tree})
+
+@app.get("/api/audit/{audit_id}/right-panel/response-times")
+async def get_right_panel_response_times(audit_id: str):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_pages = await db.get_pages(audit_id)
+    
+    buckets = build_response_times_buckets(raw_pages)
+    return JSONResponse({"buckets": buckets})
+
+@app.get("/api/audit/{audit_id}/right-panel/depth")
+async def get_right_panel_depth(audit_id: str):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_pages = await db.get_pages(audit_id)
+    
+    depths = build_depth_distribution(raw_pages)
+    return JSONResponse({"depths": depths})
+
+@app.get("/api/audit/{audit_id}/right-panel/segments")
+async def get_right_panel_segments(audit_id: str):
+    config = get_config()
+    async with Database(config.DB_PATH) as db:
+        audit = await db.get_audit(audit_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_pages = await db.get_pages(audit_id)
+    
+    audit_domain = urlparse(audit.get('url', '') if audit else '').netloc
+    internal_pages = [
+        p for p in raw_pages
+        if p.get('url') and (not urlparse(p.get('url')).netloc or urlparse(p.get('url')).netloc == audit_domain)
+    ]
+    segments = build_segments_summary(internal_pages or raw_pages)
+    return JSONResponse({"segments": segments})
 
 @app.get("/api/audit/{audit_id}/export/urls.csv")
 async def export_urls_csv(
@@ -1383,6 +1338,25 @@ async def export_urls_csv(
 
 PAGE_HEADERS_CACHE: Dict[str, Dict[str, str]] = {}
 PAGE_TECH_CACHE: Dict[str, Dict[str, list]] = {}
+PAGE_RAW_HTML_CACHE: Dict[str, str] = {}
+
+async def get_page_raw_html_safe(url: str) -> str:
+    if not url or not url.startswith(('http://', 'https://')):
+        return ""
+    if url in PAGE_RAW_HTML_CACHE:
+        return PAGE_RAW_HTML_CACHE[url]
+    import httpx
+    try:
+        req_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+        async with httpx.AsyncClient(follow_redirects=True, verify=False, timeout=3.5) as client:
+            resp = await client.get(url, headers=req_headers)
+            html = resp.text
+            PAGE_RAW_HTML_CACHE[url] = html
+            return html
+    except Exception:
+        return ""
 
 async def get_page_http_headers_safe(url: str, default_ct: str = "text/html; charset=utf-8") -> Dict[str, str]:
     if url in PAGE_HEADERS_CACHE:

@@ -50,6 +50,14 @@ class Config:
     CUSTOM_SEARCHES: List[Dict[str, str]] = field(default_factory=list)
     # e.g. [{'name': 'Missing GA4', 'type': 'does_not_contain', 'query': 'G-XXXXXXXX'}]
 
+    # Subdomain & Cross-Domain Crawling
+    CRAWL_SUBDOMAINS: bool = False
+    CRAWL_ALL_SUBDOMAINS: bool = False
+    ALLOWED_DOMAINS: List[str] = field(default_factory=list)
+    BLOCK_URLS: List[str] = field(default_factory=list)
+    ALLOW_URLS: List[str] = field(default_factory=list)
+    PSI_API_KEY: Optional[str] = None
+
 _config_instance = None
 
 def get_config() -> Config:

@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SEO Spider & URL Explorer{% endblock %}</title>
-    <!-- Google Fonts: Roboto -->
+    <!-- Google Fonts: Roboto & Bungee Shade -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -17,19 +17,22 @@
                     fontFamily: {
                         sans: ['Roboto', 'sans-serif'],
                         mono: ['Roboto', 'sans-serif'],
+                        bungee: ['"Bungee Shade"', 'cursive'],
                     },
                     colors: {
-                        paper: '#FFFFFF',
+                        paper: '#FFF7D6',
                         surface: '#FFFFFF',
                         ink: '#000000',
-                        muted: '#000000',
-                        line: '#D1D5DB',
+                        muted: '#4B5563',
+                        line: '#C8B670',
+                        borderWarm: '#C8B670',
+                        borderSubtle: '#E2D5A0',
                         sage: {
-                            DEFAULT: '#4F654C',
-                            dark: '#374735',
-                            pale: '#E5E7EB'
+                            DEFAULT: '#7FA8D6',
+                            dark: '#4A7BA8',
+                            pale: '#FFE08A'
                         },
-                        beige: '#FFFFFF'
+                        beige: '#FFF7D6'
                     }
                 }
             }
@@ -40,30 +43,29 @@
     <!-- Custom Style -->
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="bg-white text-black flex flex-col h-screen w-screen overflow-hidden antialiased font-sans m-0 p-0 select-none">
+<body class="bg-[#FFF7D6] text-black flex flex-col h-screen w-screen overflow-hidden antialiased font-sans m-0 p-0 select-none">
 
-    <!-- Top Command Bar (Clean White, Black Text, Larger Font) -->
-    <header class="bg-white border-b border-[#D1D5DB] px-3 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 text-sm z-20">
+    <!-- Top Command Bar (Slate/Zinc Enterprise Theme) -->
+    <header class="bg-white border-b border-[#C8B670] px-3 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 text-sm z-20 ">
         <!-- Left: Brand & Spider URL Input Bar -->
         <div class="flex items-center gap-3 min-w-0 flex-wrap">
-            <a href="/" class="flex items-center gap-1.5 shrink-0 font-bold text-black tracking-tight text-base">
-                <span class="w-6 h-6 bg-black text-white flex items-center justify-center text-xs font-bold">S</span>
-                <span>SEO Spider</span>
+            <a href="/" class="flex items-center gap-2 shrink-0 select-none no-underline" title="VAPLERS SEO Spider">
+                <span class="brand-logo text-2xl tracking-wider uppercase leading-none font-normal" style="font-family: 'Bungee Shade', cursive !important; color: #000000;">VAPLERS</span>
             </a>
 
-            <span class="text-[#D1D5DB]">|</span>
+            <span class="text-[#CBD5E1]">|</span>
 
             <!-- Spider URL Input & Controls -->
             <form id="spider-crawl-form" onsubmit="event.preventDefault(); startSpiderCrawl();" class="flex items-center gap-2 m-0 p-0">
                 <label for="spider-url-input" class="text-xs uppercase font-bold text-black shrink-0">Enter URL to spider:</label>
                 <input id="spider-url-input" type="url" required placeholder="https://example.com" 
                        value="{{ audit.url if audit else '' }}" 
-                       class="bg-white border border-[#D1D5DB] px-3 py-1.5 text-sm text-black w-72 md:w-96 lg:w-[420px] focus:outline-none focus:border-black font-normal">
+                       class="bg-white border border-[#C8B670] px-3 py-1.5 text-sm text-black w-72 md:w-96 lg:w-[420px] focus:outline-none focus:border-[#7FA8D6] font-normal">
                 
-                <button type="submit" id="spider-start-btn" class="btn-primary py-1.5 px-4 text-sm font-medium cursor-pointer">
+                <button type="submit" id="spider-start-btn" class="btn-primary py-1.5 px-4 text-sm font-bold cursor-pointer">
                     Start
                 </button>
-                <button type="button" id="spider-stop-btn" onclick="stopSpiderCrawl()" class="btn-secondary py-1.5 px-3 text-sm text-[#B91C1C] border-[#B91C1C] hidden cursor-pointer font-medium">
+                <button type="button" id="spider-stop-btn" onclick="stopSpiderCrawl()" class="btn-secondary py-1.5 px-3 text-sm text-[#B91C1C] border-[#C8B670] hidden cursor-pointer font-medium">
                     Stop
                 </button>
             </form>
@@ -72,7 +74,7 @@
             <div id="crawl-progress-widget" class="flex items-center gap-2 text-xs font-medium text-black {% if not audit or audit.status == 'complete' %}hidden{% endif %}">
                 <span class="text-black font-semibold">Status:</span>
                 <span id="spider-status-text" class="text-black font-bold uppercase">{{ audit.status if audit else 'Ready' }}</span>
-                <div class="w-28 bg-[#F3F4F6] h-3 border border-[#D1D5DB] overflow-hidden">
+                <div class="w-28 bg-[#FFE08A] h-2.5 border border-[#C8B670] overflow-hidden">
                     <div id="spider-progress-bar" class="bg-black h-full transition-all duration-200" style="width: 0%"></div>
                 </div>
                 <span id="spider-progress-nums" class="text-black font-bold text-xs">0 / 0</span>
@@ -85,7 +87,7 @@
             <div class="flex items-center gap-1.5">
                 <span class="text-xs font-bold uppercase text-black">Crawl:</span>
                 <select id="audit-switcher" onchange="window.location.href='/?audit_id=' + this.value" 
-                        class="bg-white border border-[#D1D5DB] px-2.5 py-1 text-sm text-black focus:outline-none focus:border-black max-w-[220px] truncate font-normal">
+                        class="bg-white border border-[#C8B670] px-2.5 py-1 text-sm text-black focus:outline-none focus:border-[#7FA8D6] max-w-[220px] truncate font-normal">
                     {% for a in recent_audits %}
                     <option value="{{ a.id }}" {% if audit and audit.id == a.id %}selected{% endif %}>
                         {{ a.domain or a.url }}
@@ -96,19 +98,20 @@
             {% endif %}
 
             {% if audit %}
-            <button type="button" onclick="clearAllDataAndReset()" class="btn-secondary py-1 px-2.5 text-xs font-medium text-[#B91C1C] border-[#D1D5DB] hover:border-[#B91C1C] flex items-center gap-1 cursor-pointer" title="Wipe stored crawl data and reset session">
+            <button type="button" onclick="clearAllDataAndReset()" class="btn-secondary py-1 px-2.5 text-xs font-medium text-[#B91C1C] border-[#C8B670] hover:bg-slate-50 flex items-center gap-1 cursor-pointer" title="Wipe stored crawl data and reset session">
                 <span>Reset / Clear</span>
             </button>
-            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="btn-secondary py-1 px-3 text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="btn-secondary py-1 px-3 text-xs font-medium border-[#C8B670] hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                <span>Export CSV</span>
+                <span>Export Full CSV</span>
             </a>
             {% endif %}
         </div>
     </header>
 
-    <!-- Main Single-Page Workspace (Edge-to-Edge Pure White) -->
-    <main class="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 bg-white text-black">
+    <!-- Main Single-Page Workspace -->
+    <main class="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 bg-[#FFF7D6] text-black">
+
         {% block content %}{% endblock %}
     </main>
 

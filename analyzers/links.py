@@ -12,6 +12,8 @@ class LinkAnalyzer:
     def __init__(self, db: Database, audit_id: str):
         self.db = db
         self.audit_id = audit_id
+        self.status_updates = []
+        self.issues_buffer = []
 
     async def analyze(self):
         """
@@ -35,19 +37,21 @@ class LinkAnalyzer:
                     uncrawled_internal.add(t_url)
 
         if uncrawled_internal:
-            async with httpx.AsyncClient(timeout=2.0, follow_redirects=False, limits=httpx.Limits(max_connections=30)) as client:
+            async with httpx.AsyncClient(timeout=3.0, follow_redirects=False, limits=httpx.Limits(max_connections=30)) as client:
+                sem = asyncio.Semaphore(20)
                 async def _probe_url(target):
-                    try:
-                        resp = await client.head(target)
-                        return target, resp.status_code
-                    except Exception:
+                    async with sem:
                         try:
-                            resp = await client.get(target)
+                            resp = await client.head(target)
                             return target, resp.status_code
                         except Exception:
-                            return target, 0
+                            try:
+                                resp = await client.get(target)
+                                return target, resp.status_code
+                            except Exception:
+                                return target, 0
 
-                probe_targets = list(uncrawled_internal)[:40]
+                probe_targets = list(uncrawled_internal)[:250]
                 results = await asyncio.gather(*[_probe_url(t) for t in probe_targets], return_exceptions=True)
                 for res in results:
                     if isinstance(res, tuple):
@@ -139,7 +143,10 @@ class LinkAnalyzer:
 
                 # Update database link record with actual status and broken flag
                 if link_id:
-                    await self.db.update_link(link_id, status_code=status_code, is_broken=is_broken)
+                    self.status_updates.append((status_code, is_broken, link_id))
+                    if len(self.status_updates) >= 500:
+                        await self.db.update_links_status_batch(self.status_updates)
+                        self.status_updates = []
 
                 # Internal nofollow links
                 if nofollow:
@@ -207,12 +214,112 @@ class LinkAnalyzer:
                     recommendation="Add more internal links pointing to this page to boost its crawl frequency and index authority."
                 )
 
+        # Compute and persist unique inlinks, outlinks, and link score
+        inlinks_map: Dict[str, set] = {p['url']: set() for p in pages}
+        internal_outlinks_map: Dict[int, set] = {p['id']: set() for p in pages}
+        external_outlinks_map: Dict[int, set] = {p['id']: set() for p in pages}
+
+        for lk in links:
+            sp_id = lk.get('source_page_id')
+            t_url = lk.get('target_url')
+            is_int = lk.get('is_internal', True)
+
+            if t_url and t_url in inlinks_map and sp_id is not None:
+                inlinks_map[t_url].add(sp_id)
+
+            if sp_id in internal_outlinks_map:
+                if is_int:
+                    if t_url:
+                        internal_outlinks_map[sp_id].add(t_url)
+                else:
+                    if t_url:
+                        external_outlinks_map[sp_id].add(t_url)
+
+        for page in pages:
+            pid = page['id']
+            u = page['url']
+            u_in = len(inlinks_map.get(u, set()))
+            u_out = len(internal_outlinks_map.get(pid, set()))
+            u_ext = len(external_outlinks_map.get(pid, set()))
+            pr = page.get('internal_pagerank', 0.0) or 0.0
+            link_score = round(min(100.0, pr * 100.0), 2) if pr > 0 else round(min(100.0, (u_in / max(1, len(pages))) * 100.0), 2)
+            await self.db.update_page_columns(
+                pid,
+                unique_inlinks=u_in,
+                unique_outlinks=u_out,
+                unique_external_outlinks=u_ext,
+                link_score=link_score
+            )
+
+        if self.status_updates:
+            await self.db.update_links_status_batch(self.status_updates)
+            self.status_updates = []
+
         if total_broken_internal > 0:
             await self._add_issue(
                 page_id=None, url=None, severity='critical', issue_type='total_broken_internal_links',
                 message=f"Site has {total_broken_internal} broken internal links.",
                 recommendation="Review the Internal Links tab and fix all broken internal hyperlinks."
             )
+
+        # External Outbound Link Validation (External Tab)
+        external_links = [l for l in links if not l.get('is_internal', True) and l.get('target_url')]
+        ext_targets = list(dict.fromkeys(
+            l['target_url'] for l in external_links
+            if l['target_url'].startswith(('http://', 'https://'))
+        ))[:250]
+
+        if ext_targets:
+            logger.info(f"Probing {len(ext_targets)} external link targets...")
+            ext_status_map: Dict[str, int] = {}
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True, limits=httpx.Limits(max_connections=20)) as ext_client:
+                ext_sem = asyncio.Semaphore(15)
+                async def _probe_ext(target):
+                    async with ext_sem:
+                        try:
+                            resp = await ext_client.head(target)
+                            return target, resp.status_code
+                        except Exception:
+                            try:
+                                resp = await ext_client.get(target)
+                                return target, resp.status_code
+                            except Exception:
+                                return target, 0
+
+                ext_results = await asyncio.gather(*[_probe_ext(t) for t in ext_targets], return_exceptions=True)
+                for res in ext_results:
+                    if isinstance(res, tuple):
+                        t, sc = res
+                        ext_status_map[t] = sc
+
+            broken_ext_count = 0
+            for el in external_links:
+                t = el.get('target_url')
+                sc = ext_status_map.get(t)
+                if sc is not None:
+                    is_broken = sc >= 400 or sc == 0
+                    if is_broken:
+                        broken_ext_count += 1
+                        sp_id = el.get('source_page_id')
+                        s_url = el.get('source_url')
+                        status_str = f"HTTP {sc}" if sc > 0 else "Connection Timeout / Unreachable"
+                        await self._add_issue(
+                            page_id=sp_id, url=s_url, severity='critical', issue_type='broken_external_link',
+                            message=f"Broken external link ({status_str}): {t}",
+                            recommendation="Fix or remove this broken outbound hyperlink to maintain site quality.",
+                            element=t
+                        )
+
+            if broken_ext_count > 0:
+                await self._add_issue(
+                    page_id=None, url=None, severity='warning', issue_type='total_broken_external_links',
+                    message=f"Site has {broken_ext_count} broken external outbound links.",
+                    recommendation="Audit external hyperlinks and replace or remove dead outbound URLs."
+                )
+
+        if self.issues_buffer:
+            await self.db.add_issues_batch(self.issues_buffer)
+            self.issues_buffer = []
 
         logger.info(f"LinkAnalyzer finished for audit {self.audit_id} (found {total_broken_internal} broken internal links)")
 
@@ -226,14 +333,17 @@ class LinkAnalyzer:
         recommendation: str,
         element: str | None = None
     ):
-        await self.db.add_issue(
-            audit_id=self.audit_id,
-            page_id=page_id,
-            url=url,
-            category='links',
-            severity=severity,
-            issue_type=issue_type,
-            message=message,
-            recommendation=recommendation,
-            element=element
-        )
+        self.issues_buffer.append({
+            'audit_id': self.audit_id,
+            'page_id': page_id,
+            'url': url,
+            'category': 'links',
+            'severity': severity,
+            'issue_type': issue_type,
+            'message': message,
+            'recommendation': recommendation,
+            'element': element
+        })
+        if len(self.issues_buffer) >= 500:
+            await self.db.add_issues_batch(self.issues_buffer)
+            self.issues_buffer = []

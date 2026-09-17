@@ -50,7 +50,7 @@ Don't use 20 shades of green. Use a small, disciplined palette.
 | `sage-pale` | Subtle sage wash | `#E7EDE3` | Very subtle selected state |
 | `beige` | Soft stone | `#E9E1D2` | Secondary background/accent (used sparingly) |
 
-### Semantic Colours (Muted, Not Screaming)
+### Semantic Colours (Muted, Not Loud)
 | Role | Colour | Hex | Usage |
 | :--- | :--- | :--- | :--- |
 | **Success** | Muted moss | `#647A5D` | Good status, valid tests, 200 OK |

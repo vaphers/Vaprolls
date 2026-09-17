@@ -19,13 +19,15 @@ class TechnicalAnalyzer:
             logger.warning(f"No pages found for audit {self.audit_id}")
             return
 
+        incoming_link_targets = await self.db.get_incoming_link_targets(self.audit_id)
+
         for page in pages:
             await self.check_http_status(page)
             await self.check_redirects(page)
             await self.check_response_time(page)
             await self.check_canonical(page, pages)
             await self.check_meta_robots(page)
-            await self.check_indexability(page)
+            await self.check_indexability(page, incoming_link_targets)
             await self.check_url_structure(page)
             await self.check_crawl_depth(page)
 
@@ -138,16 +140,21 @@ class TechnicalAnalyzer:
             else:
                 await self._add_issue(page_id, url, 'info', 'page_noindex', "Page has noindex", "Ensure this page is intentionally excluded from indexing.", None)
 
-    async def check_indexability(self, page: Dict[str, Any]):
+    async def check_indexability(self, page: Dict[str, Any], incoming_link_targets: Optional[set] = None):
         url = page.get('url')
         page_id = page.get('id')
         is_indexable = page.get('is_indexable', True)
         is_important = page.get('is_important', False)
         
         if not is_indexable:
-            links = await self.db.get_links(self.audit_id, is_internal=True)
-            incoming_links = [link for link in links if link.get('target_url') == url]
-            if incoming_links:
+            has_incoming = False
+            if incoming_link_targets is not None:
+                has_incoming = bool(url and (url in incoming_link_targets or url.rstrip('/') in incoming_link_targets))
+            else:
+                links = await self.db.get_page_inlinks(self.audit_id, url or '', limit=1)
+                has_incoming = bool(links)
+
+            if has_incoming:
                 await self._add_issue(page_id, url, 'warning', 'noindex_internal_links', "Non-indexable page receiving internal links", "Remove internal links to non-indexable pages to preserve crawl budget.", None)
                 
             if is_important:

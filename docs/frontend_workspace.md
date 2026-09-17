@@ -2,7 +2,7 @@
 
 ## 1. Interface Overview
 
-Vaprolls uses a dense, zero-gap Single Page Application (SPA) interface engineered to match professional desktop crawler software (such as Screaming Frog SEO Spider). The UI eliminates decorative margins and rounded corners in favor of 1px structural border dividers, universal Roboto typography, and high-contrast black text.
+Vaprolls uses a dense, zero-gap Single Page Application (SPA) interface engineered to match professional desktop crawler software. The UI eliminates decorative margins and rounded corners in favor of 1px structural border dividers, universal Roboto typography, and high-contrast black text.
 
 Related documentation:
 - Visual styling rules: [Visual Design Style Guide](visual_design_style_guide.md)

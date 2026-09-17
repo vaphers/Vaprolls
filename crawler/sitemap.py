@@ -14,6 +14,7 @@ class SitemapURL:
     lastmod: Optional[str] = None
     changefreq: Optional[str] = None
     priority: Optional[float] = None
+    sitemap_url: Optional[str] = None
 
 class SitemapParser:
     """
@@ -96,7 +97,8 @@ class SitemapParser:
                         url=loc,
                         lastmod=lastmod,
                         changefreq=changefreq,
-                        priority=priority
+                        priority=priority,
+                        sitemap_url=url
                     ))
             else:
                 self.errors.append(f"Invalid XML format (neither sitemapindex nor urlset found) in {url}")

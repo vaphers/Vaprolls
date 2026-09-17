@@ -55,21 +55,49 @@ class ImageAnalyzer:
                     await self._add_issue(page_id, page_url, 'info', 'old_image_format', "Image using old format", "Consider serving images in next-gen formats like WebP or AVIF.", src)
                     old_format_images += 1
 
+            # Check image file size
+            file_size = img.get('file_size')
+            if file_size:
+                size_kb = file_size / 1024
+                if size_kb > 200:
+                    await self._add_issue(
+                        page_id, page_url, 'critical', 'oversized_image',
+                        f"Image is {size_kb:.0f}KB (>200KB limit)",
+                        "Compress, resize, or convert this image to WebP/AVIF to reduce load times.",
+                        src
+                    )
+                elif size_kb > 100:
+                    await self._add_issue(
+                        page_id, page_url, 'warning', 'large_image',
+                        f"Image is {size_kb:.0f}KB (>100KB)",
+                        "Consider compressing this image to under 100KB.",
+                        src
+                    )
+
         if missing_alt_count > 0:
             await self._add_issue(None, None, 'warning', 'site_wide_missing_alt', f"{missing_alt_count} images missing alt text", "Review and add alt text to missing images.", missing_alt_count)
 
         if old_format_images > 0:
             await self._add_issue(None, None, 'info', 'site_wide_old_formats', f"{old_format_images} images using old formats", "Upgrade images to next-gen formats.", old_format_images)
 
+        if hasattr(self, 'issues_buffer') and self.issues_buffer:
+            await self.db.add_issues_batch(self.issues_buffer)
+            self.issues_buffer = []
+
     async def _add_issue(self, page_id: Optional[int], url: Optional[str], severity: str, issue_type: str, message: str, recommendation: str, element: Any = None):
-        await self.db.add_issue(
-            audit_id=self.audit_id,
-            page_id=page_id,
-            url=url,
-            category='images',
-            severity=severity,
-            issue_type=issue_type,
-            message=message,
-            recommendation=recommendation,
-            element=element
-        )
+        if not hasattr(self, 'issues_buffer'):
+            self.issues_buffer = []
+        self.issues_buffer.append({
+            'audit_id': self.audit_id,
+            'page_id': page_id,
+            'url': url,
+            'category': 'images',
+            'severity': severity,
+            'issue_type': issue_type,
+            'message': message,
+            'recommendation': recommendation,
+            'element': element
+        })
+        if len(self.issues_buffer) >= 500:
+            await self.db.add_issues_batch(self.issues_buffer)
+            self.issues_buffer = []

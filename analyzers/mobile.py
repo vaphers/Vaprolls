@@ -19,10 +19,6 @@ class MobileAnalyzer:
 
         pages_without_viewport = 0
 
-        for page in pages:
-            page_id = page.get('id')
-            url = page.get('url')
-            
         # Check if any pages have viewport data populated
         any_viewport_tracked = any(page.get('viewport') is not None for page in pages)
 

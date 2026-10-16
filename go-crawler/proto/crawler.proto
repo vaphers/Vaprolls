@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package crawler;
+
+option go_package = "go-crawler/proto;proto";
+
+service CrawlerService {
+    rpc StartCrawl(CrawlRequest) returns (stream CrawlEvent);
+    rpc StopCrawl(StopRequest) returns (StopResponse);
+    rpc GetStatus(StatusRequest) returns (CrawlStatus);
+    rpc ResumeCrawl(ResumeRequest) returns (stream CrawlEvent);
+}
+
+message CrawlRequest {
+    string audit_id = 1;
+    string start_url = 2;
+    int64 max_pages = 3;
+    int32 concurrency = 4;
+    int32 max_per_host = 5;
+    int32 host_delay_ms = 6;
+    string user_agent = 7;
+    string crawl_mode = 8;
+    repeated string urls_list = 9;
+    repeated string include_regex = 10;
+    repeated string exclude_regex = 11;
+    int32 max_crawl_depth = 12;
+    bool crawl_subdomains = 13;
+    repeated string allowed_domains = 14;
+    repeated string block_urls = 15;
+    string postgres_dsn = 16;
+    string sqlite_path = 17;
+    bool respect_robots_crawl_delay = 18;
+}
+
+message ResumeRequest {
+    string audit_id = 1;
+    string postgres_dsn = 2;
+    string sqlite_path = 3;
+}
+
+message StopRequest {
+    string audit_id = 1;
+}
+
+message StopResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message StatusRequest {
+    string audit_id = 1;
+}
+
+message CrawlStatus {
+    string audit_id = 1;
+    string state = 2; // "running", "paused", "completed", "failed"
+    int64 pages_crawled = 3;
+    int64 queue_size = 4;
+    int64 errors = 5;
+    double pages_per_sec = 6;
+    double avg_response_ms = 7;
+    int64 memory_mb = 8;
+}
+
+message CrawlEvent {
+    string type = 1; // "page_result", "progress", "checkpoint", "completed", "error"
+    PageSummary page = 2;
+    CrawlProgress progress = 3;
+    string message = 4;
+}
+
+message PageSummary {
+    string url = 1;
+    string final_url = 2;
+    int32 status_code = 3;
+    string content_type = 4;
+    double response_time_ms = 5;
+    int64 size_bytes = 6;
+    int32 crawl_depth = 7;
+    string title = 8;
+    string meta_description = 9;
+    string h1 = 10;
+    string canonical_url = 11;
+    string indexability = 12;
+    int32 word_count = 13;
+    int32 internal_links_count = 14;
+    int32 external_links_count = 15;
+    int32 images_count = 16;
+}
+
+message CrawlProgress {
+    int64 pages_crawled = 1;
+    int64 queue_size = 2;
+    int64 max_pages = 3;
+    double pages_per_sec = 4;
+    string current_url = 5;
+    int64 errors = 6;
+    double avg_response_ms = 7;
+    int64 memory_mb = 8;
+    int64 visited_count = 9;
+}

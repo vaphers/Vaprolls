@@ -6,13 +6,13 @@ import logging
 import os
 import re
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Form, HTTPException, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -20,9 +20,24 @@ from pydantic import BaseModel
 from config import get_config
 from database.db import Database
 from crawler.engine import CrawlEngine
+try:
+    from crawler.go_client import GoCrawlerClient
+except ImportError:
+    GoCrawlerClient = None
+try:
+    from database.postgres_db import PostgresDatabase
+except ImportError:
+    PostgresDatabase = None
 from analyzers.technical import TechnicalAnalyzer
 from analyzers.onpage import OnPageAnalyzer
 from analyzers.links import LinkAnalyzer
+from analyzers.hierarchy_analyzer import HierarchyAnalyzer
+from analyzers.advanced_seo_analyzer import AdvancedSEOAnalyzer
+from analyzers.crawl_comparator import CrawlComparator
+from analyzers.visualizations import VisualizationGenerator
+from analyzers.exports import ExportGenerator
+from crawler.custom_extractor import CustomExtractorEngine
+from crawler.js_renderer import JSRenderer
 from web.enrichment import (
     TAB_SCHEMAS,
     parse_cookies_json,
@@ -31,6 +46,7 @@ from web.enrichment import (
     build_tab_dataset,
     filter_and_sort_tab_rows,
     build_issues_summary,
+    build_page_issues,
     build_site_structure_tree,
     build_response_times_buckets,
     build_depth_distribution,
@@ -77,29 +93,87 @@ from fastapi.responses import FileResponse
 
 from contextlib import asynccontextmanager
 
+_cleanup_done = False
+
 def cleanup_all_crawl_data():
-    """Wipe database, journals, screenshots, and in-memory caches cleanly."""
+    """Wipe database, journals, screenshots, __pycache__, and in-memory caches cleanly."""
+    global _cleanup_done
+    import stat
+    import glob
+    import shutil
+
     for aid, task in list(active_audits.items()):
         if not task.done():
-            task.cancel()
+            try:
+                task.cancel()
+            except Exception:
+                pass
     active_audits.clear()
     PAGE_HEADERS_CACHE.clear()
     PAGE_TECH_CACHE.clear()
     PAGE_RAW_HTML_CACHE.clear()
+
+    def _remove_readonly(func, path, excinfo):
+        try:
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+        except Exception:
+            pass
+
+    def _safe_remove(file_path: str, retries: int = 3):
+        if not os.path.exists(file_path):
+            return
+        for attempt in range(retries):
+            try:
+                os.chmod(file_path, stat.S_IWRITE)
+                os.remove(file_path)
+                logger.info(f"Removed file: {file_path}")
+                return
+            except PermissionError:
+                time.sleep(0.15)
+            except Exception as ex:
+                logger.warning(f"Could not remove {file_path}: {ex}")
+                return
+        logger.warning(f"File locked after {retries} retries: {file_path}")
+
     try:
-        db_path = get_config().DB_PATH
-        if os.path.exists(db_path):
-            os.remove(db_path)
-            logger.info(f"Removed database: {db_path}")
-        for suffix in ['-wal', '-shm']:
-            journal = db_path + suffix
-            if os.path.exists(journal):
-                os.remove(journal)
+        cfg = get_config()
+        db_path = cfg.DB_PATH
+        # 1. Main configured DB and journals
+        _safe_remove(db_path)
+        for suffix in ['-wal', '-shm', '-journal']:
+            _safe_remove(db_path + suffix)
+
+        # 2. Any .db, .db-wal, .db-shm in data/ directory
+        data_dir = os.path.dirname(os.path.abspath(db_path))
+        if os.path.isdir(data_dir):
+            for f in os.listdir(data_dir):
+                if f.endswith(('.db', '.db-wal', '.db-shm', '.db-journal')):
+                    _safe_remove(os.path.join(data_dir, f))
+
+        # 3. Root directory stale db files
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        for f in os.listdir(root_dir):
+            if f.endswith(('.db', '.db-wal', '.db-shm', '.db-journal')):
+                _safe_remove(os.path.join(root_dir, f))
+
+        # 4. Screenshots directory
         shots_dir = os.path.join(BASE_DIR, "static", "screenshots")
         if os.path.isdir(shots_dir):
-            import shutil
-            shutil.rmtree(shots_dir, ignore_errors=True)
+            shutil.rmtree(shots_dir, onerror=_remove_readonly)
             logger.info(f"Removed screenshots directory: {shots_dir}")
+
+        # 5. Project __pycache__ directories
+        for root, dirs, _ in os.walk(root_dir):
+            for d in list(dirs):
+                if d == '__pycache__':
+                    pycache_path = os.path.join(root, d)
+                    try:
+                        shutil.rmtree(pycache_path, onerror=_remove_readonly)
+                    except Exception:
+                        pass
+        logger.info("All cache, DBs, screenshots, and bytecode cleaned successfully.")
+        _cleanup_done = True
     except Exception as e:
         logger.warning(f"Error cleaning up data: {e}")
 
@@ -111,6 +185,13 @@ async def lifespan(app: FastAPI):
     PAGE_HEADERS_CACHE.clear()
     PAGE_TECH_CACHE.clear()
     PAGE_RAW_HTML_CACHE.clear()
+    
+    # Startup cleanup: Ensure no stale locks or orphaned cache from previous abnormal exits
+    try:
+        cleanup_all_crawl_data()
+    except Exception as e:
+        logger.warning(f"Startup cleanup notice: {e}")
+        
     yield
     # Graceful Shutdown
     logger.info("SEO Spider workspace shutting down. Cleaning up active crawls and connections...")
@@ -129,78 +210,338 @@ async def lifespan(app: FastAPI):
     PAGE_HEADERS_CACHE.clear()
     PAGE_TECH_CACHE.clear()
     PAGE_RAW_HTML_CACHE.clear()
+
+    try:
+        cleanup_all_crawl_data()
+    except Exception as e:
+        logger.warning(f"Shutdown cleanup error: {e}")
     logger.info("SEO Spider workspace clean shutdown complete.")
 
 app = FastAPI(title="SEO Spider & URL Explorer", lifespan=lifespan)
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+react_assets = os.path.join(PROJECT_ROOT, "frontend", "dist", "assets")
+if os.path.exists(react_assets):
+    app.mount("/assets", StaticFiles(directory=react_assets), name="react-assets")
+
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 active_audits = {}
 ws_connections: Dict[str, list[WebSocket]] = {}
 
+def get_app_db():
+    config = get_config()
+    if getattr(config, 'POSTGRES_DSN', None) and config.POSTGRES_DSN.strip() and PostgresDatabase:
+        return PostgresDatabase(config.POSTGRES_DSN)
+    return Database(config.DB_PATH)
+
 class AuditRequest(BaseModel):
     url: str
-    max_pages: Optional[int] = 500
-    concurrency: Optional[int] = 15
+    max_pages: Optional[int] = 0
+    concurrency: Optional[int] = 30
     crawl_delay: Optional[float] = 0.0
     mode: Optional[str] = "spider"
+    sitemaps: Optional[List[str]] = None
+    sitemaps_text: Optional[str] = None
     include_regex: Optional[str] = None
     exclude_regex: Optional[str] = None
     user_agent_preset: Optional[str] = "default"
     basic_auth: Optional[str] = None
     urls_text: Optional[str] = None
+    rendering_mode: Optional[str] = "text"
+    custom_extractors: Optional[List[Dict[str, Any]]] = None
+    custom_search: Optional[List[Dict[str, Any]]] = None
 
 async def run_audit_background(audit_id: str, url: str, config, db_path: str):
     try:
-        async with Database(db_path) as db:
+        db_instance = get_app_db()
+        use_pg = bool(PostgresDatabase and isinstance(db_instance, PostgresDatabase))
+
+        last_prog_send = 0.0
+        last_row_send = 0.0
+        total_crawled_so_far = 0
+
+        async with db_instance as db:
+            queued_rows = []
+
+            def flush_queued_rows():
+                nonlocal last_row_send, total_crawled_so_far
+                conns = ws_connections.get(audit_id)
+                if not conns or not queued_rows:
+                    return
+                rows_to_send = list(queued_rows)
+                queued_rows.clear()
+                last_row_send = time.time()
+                message = {
+                    "type": "progress",
+                    "status": "crawling",
+                    "crawled": total_crawled_so_far,
+                    "max_pages": getattr(config, 'MAX_PAGES', 0),
+                    "page_rows": rows_to_send,
+                }
+                dead_conns = []
+                for ws in list(conns):
+                    try:
+                        asyncio.create_task(ws.send_json(message))
+                    except Exception:
+                        dead_conns.append(ws)
+                for dc in dead_conns:
+                    if dc in ws_connections.get(audit_id, []):
+                        ws_connections[audit_id].remove(dc)
+
             def progress_callback(data):
-                if audit_id in ws_connections:
-                    status_val = data.get("status", "crawling")
-                    message = {
-                        "type": "status" if status_val == "analyzing" else "progress",
-                        "status": status_val,
-                        "crawled": data.get("crawled", 0),
-                        "total": data.get("total", 0),
-                        "url": data.get("url", "")
+                nonlocal last_prog_send, last_row_send, total_crawled_so_far
+                now = time.time()
+                status_val = data.get("status", "crawling")
+                page_row = data.get("page_row")
+                is_status = (status_val in ("analyzing", "complete", "completed"))
+
+                if "crawled" in data and data["crawled"]:
+                    total_crawled_so_far = data["crawled"]
+                elif page_row:
+                    total_crawled_so_far += 1
+
+                # Buffer and batch live table rows unconditionally so 100% of discovered URLs reach the frontend
+                if page_row:
+                    queued_rows.append(page_row)
+                    if (now - last_row_send >= 0.08) or (len(queued_rows) >= 20):
+                        flush_queued_rows()
+                    return
+                elif not is_status:
+                    if now - last_prog_send < 0.12:  # at most ~8 progress ticks / sec
+                        return
+                    last_prog_send = now
+
+                conns = ws_connections.get(audit_id)
+                if not conns:
+                    return
+
+                message = {
+                    "type": "status" if status_val == "analyzing" else "progress",
+                    "status": status_val,
+                    "crawled": total_crawled_so_far,
+                    "total": data.get("total", total_crawled_so_far),
+                    "max_pages": data.get("max_pages", getattr(config, 'MAX_PAGES', 0)),
+                    "pages_per_sec": data.get("pages_per_sec", 0),
+                    "avg_response_ms": data.get("avg_response_ms", 0),
+                    "memory_mb": data.get("memory_mb", 0),
+                    "errors": data.get("errors", 0),
+                    "url": data.get("url", ""),
+                    "crawl_config": {
+                        "max_pages": getattr(config, 'MAX_PAGES', 0),
+                        "concurrency": getattr(config, 'CRAWL_CONCURRENCY', 30)
                     }
-                    for ws in ws_connections[audit_id]:
-                        try:
-                            asyncio.create_task(ws.send_json(message))
-                        except Exception:
-                            pass
+                }
+
+                dead_conns = []
+                for ws in list(conns):
+                    try:
+                        asyncio.create_task(ws.send_json(message))
+                    except Exception:
+                        dead_conns.append(ws)
+                for dc in dead_conns:
+                    if dc in ws_connections.get(audit_id, []):
+                        ws_connections[audit_id].remove(dc)
             
-            engine = CrawlEngine(start_url=url, config=config, database=db, progress_callback=progress_callback, audit_id=audit_id)
-            actual_audit_id = await engine.crawl(audit_id=audit_id)
+            use_go_crawler = (getattr(config, 'CRAWLER_ENGINE', 'go') == 'go') and (GoCrawlerClient is not None)
+            go_crawled = False
+
+            if use_go_crawler:
+                target_str = getattr(config, 'GO_CRAWLER_GRPC_TARGET', '127.0.0.1:50051')
+                h, p = target_str.split(":") if ":" in target_str else ("127.0.0.1", 50051)
+                go_client = GoCrawlerClient(host=h, port=int(p))
+                if await go_client.ensure_service_running(timeout_sec=5.0):
+                    logger.info(f"Using high-throughput Go Crawl Engine on {target_str} for audit {audit_id}")
+                    await db.update_audit(audit_id, status='crawling')
+
+                    concurrency_val = getattr(config, 'CRAWL_CONCURRENCY', 30) or 30
+                    cfg_dict = {
+                        "audit_id": audit_id,
+                        "start_url": url,
+                        "max_pages": getattr(config, 'MAX_PAGES', 0),
+                        "concurrency": concurrency_val,
+                        "max_per_host": getattr(config, 'MAX_PER_HOST', concurrency_val),
+                        "host_delay_ms": int(getattr(config, 'CRAWL_DELAY', 0.0) * 1000),
+                        "user_agent": getattr(config, 'USER_AGENT', ''),
+                        "crawl_mode": getattr(config, 'CRAWL_MODE', 'spider'),
+                        "urls_list": getattr(config, 'URLS_LIST', []),
+                        "include_regex": getattr(config, 'INCLUDE_REGEX', []),
+                        "exclude_regex": getattr(config, 'EXCLUDE_REGEX', []),
+                        "max_crawl_depth": getattr(config, 'MAX_CRAWL_DEPTH', 0) or 0,
+                        "crawl_subdomains": getattr(config, 'CRAWL_SUBDOMAINS', False),
+                        "allowed_domains": getattr(config, 'ALLOWED_DOMAINS', []),
+                        "block_urls": getattr(config, 'BLOCK_URLS', []),
+                        "postgres_dsn": getattr(config, 'POSTGRES_DSN', '') if use_pg else '',
+                        "sqlite_path": os.path.abspath(db_path) if not use_pg else '',
+                        "respect_robots_crawl_delay": getattr(config, 'RESPECT_ROBOTS_TXT', False) and getattr(config, 'RESPECT_CRAWL_DELAY', False),
+                    }
+
+                    try:
+                        async for event in go_client.start_crawl(cfg_dict):
+                            if event.type == "progress" and event.progress:
+                                prog = event.progress
+                                progress_callback({
+                                    "crawled": prog.pages_crawled,
+                                    "total": prog.pages_crawled + prog.queue_size,
+                                    "max_pages": prog.max_pages,
+                                    "pages_per_sec": round(prog.pages_per_sec, 1),
+                                    "avg_response_ms": round(prog.avg_response_ms, 1),
+                                    "memory_mb": prog.memory_mb,
+                                    "errors": prog.errors,
+                                    "url": prog.current_url,
+                                })
+                            elif event.type == "page_result" and event.page:
+                                pg = event.page
+                                page_row_data = {
+                                    "url": pg.url,
+                                    "final_url": pg.final_url,
+                                    "status_code": pg.status_code,
+                                    "content_type": pg.content_type,
+                                    "response_time_ms": pg.response_time_ms,
+                                    "size_bytes": pg.size_bytes,
+                                    "crawl_depth": pg.crawl_depth,
+                                    "title": pg.title,
+                                    "meta_description": pg.meta_description,
+                                    "h1": pg.h1,
+                                    "canonical_url": pg.canonical_url,
+                                    "word_count": pg.word_count,
+                                    "indexability": pg.indexability,
+                                }
+                                progress_callback({"page_row": page_row_data, "url": pg.url})
+                        flush_queued_rows()
+                        pages_cnt = await db.get_pages_count(audit_id)
+                        await db.update_audit(audit_id, total_pages=pages_cnt)
+                        go_crawled = True
+                    except Exception as ex_go:
+                        logger.warning(f"Go crawl stream error, falling back to Python: {ex_go}")
+                    finally:
+                        await go_client.close()
+
+            if not go_crawled:
+                engine = CrawlEngine(start_url=url, config=config, database=db, progress_callback=progress_callback, audit_id=audit_id)
+                actual_audit_id = await engine.crawl(audit_id=audit_id)
+                flush_queued_rows()
+
+            # Optional JavaScript Rendering via Headless Playwright Chromium
+            if getattr(config, 'RENDERING_MODE', 'text') == 'javascript':
+                logger.info(f"Rendering pages with Playwright Headless Chromium for audit {audit_id}")
+                renderer = JSRenderer(concurrency=min(4, getattr(config, 'CRAWL_CONCURRENCY', 4)))
+                await renderer.initialize()
+                try:
+                    crawled_pages = await db.get_pages(audit_id)
+                    for p in crawled_pages:
+                        if 'text/html' in (p.get('content_type') or 'text/html'):
+                            rendered_data = await renderer.render_url(
+                                p['url'],
+                                user_agent=getattr(config, 'USER_AGENT', None),
+                                audit_id=audit_id,
+                                take_screenshot=True
+                            )
+                            if rendered_data and not rendered_data.get('error'):
+                                await db.update_page_columns(
+                                    p['id'],
+                                    rendered_html=rendered_data.get('rendered_html'),
+                                    rendered_title=rendered_data.get('rendered_title'),
+                                    rendered_meta_description=rendered_data.get('rendered_meta_description'),
+                                    rendered_h1=rendered_data.get('rendered_h1'),
+                                    rendered_canonical=rendered_data.get('rendered_canonical'),
+                                    rendered_word_count=rendered_data.get('rendered_word_count'),
+                                    js_errors=rendered_data.get('js_errors_count', 0),
+                                    js_warnings=rendered_data.get('js_warnings_count', 0),
+                                    js_issues=json.dumps(rendered_data.get('js_errors', []))
+                                )
+                except Exception as ex_rend:
+                    logger.warning(f"JS Rendering error during audit {audit_id}: {ex_rend}")
+                finally:
+                    await renderer.close()
+
+            # Execute Custom Extraction and Custom Search if configured
+            c_extractors = getattr(config, 'CUSTOM_EXTRACTORS', [])
+            c_search = getattr(config, 'CUSTOM_SEARCH', [])
+            if c_extractors or c_search:
+                logger.info(f"Evaluating custom extraction & search rules for audit {audit_id}")
+                all_pages = await db.get_pages(audit_id)
+                for p in all_pages:
+                    html_content = p.get('rendered_html') or p.get('raw_html') or ''
+                    if not html_content and p.get('url'):
+                        html_content = await get_page_raw_html_safe(p.get('url'))
+                    if not html_content:
+                        continue
+                    extractions = CustomExtractorEngine.extract_custom_data(html_content, c_extractors) if c_extractors else {}
+                    search_res = CustomExtractorEngine.search_custom_data(html_content, c_search) if c_search else {}
+                    await db.update_page_columns(
+                        p['id'],
+                        custom_extractions_json=json.dumps(extractions) if extractions else None,
+                        custom_search_json=json.dumps(search_res) if search_res else None
+                    )
+
             await db.update_audit(audit_id, status='analyzing')
+            if audit_id in ws_connections:
+                analyzing_msg = {"type": "status", "status": "analyzing", "audit_id": audit_id}
+                for ws in list(ws_connections[audit_id]):
+                    try:
+                        asyncio.create_task(ws.send_json(analyzing_msg))
+                    except Exception:
+                        pass
             
-            analyzers = [
+            # Tier 2: Fast core SEO analyzers (status codes, titles, headers, broken links, images, sitemaps, hierarchy, advanced SEO)
+            tier2_analyzers = [
                 TechnicalAnalyzer(db, audit_id),
                 OnPageAnalyzer(db, audit_id),
                 LinkAnalyzer(db, audit_id),
+                HierarchyAnalyzer(db, audit_id),
+                AdvancedSEOAnalyzer(db, audit_id),
             ]
-            if ImageAnalyzer: analyzers.append(ImageAnalyzer(db, audit_id))
-            if PerformanceAnalyzer: analyzers.append(PerformanceAnalyzer(db, audit_id))
-            if MobileAnalyzer: analyzers.append(MobileAnalyzer(db, audit_id))
-            if StructuredDataAnalyzer: analyzers.append(StructuredDataAnalyzer(db, audit_id))
-            if SecurityAnalyzer: analyzers.append(SecurityAnalyzer(db, audit_id))
-            if KeywordAnalyzer: analyzers.append(KeywordAnalyzer(db, audit_id))
-            if SiteWideAnalyzer: analyzers.append(SiteWideAnalyzer(db, audit_id))
+            if ImageAnalyzer: tier2_analyzers.append(ImageAnalyzer(db, audit_id))
+            if PerformanceAnalyzer: tier2_analyzers.append(PerformanceAnalyzer(db, audit_id))
+            if MobileAnalyzer: tier2_analyzers.append(MobileAnalyzer(db, audit_id))
+            if StructuredDataAnalyzer: tier2_analyzers.append(StructuredDataAnalyzer(db, audit_id))
+            if SecurityAnalyzer: tier2_analyzers.append(SecurityAnalyzer(db, audit_id))
+            if KeywordAnalyzer: tier2_analyzers.append(KeywordAnalyzer(db, audit_id))
+            if SiteWideAnalyzer: tier2_analyzers.append(SiteWideAnalyzer(db, audit_id))
             
-            # Enterprise Analyzers
-            if PageRankAnalyzer: analyzers.append(PageRankAnalyzer(db, audit_id))
-            if HreflangAnalyzer: analyzers.append(HreflangAnalyzer(db, audit_id))
-            if JsSeoAnalyzer: analyzers.append(JsSeoAnalyzer(db, audit_id))
-            if CustomSearchAnalyzer: analyzers.append(CustomSearchAnalyzer(db, audit_id))
-            if ContentAnalyzer: analyzers.append(ContentAnalyzer(db, audit_id))
-            if AccessibilityAnalyzer: analyzers.append(AccessibilityAnalyzer(db, audit_id))
+            for analyzer in tier2_analyzers:
+                try:
+                    await analyzer.analyze()
+                except Exception as ea:
+                    logger.warning(f"Tier 2 analyzer {analyzer.__class__.__name__} failed: {ea}")
+
+            # Notify frontend that core analysis is ready so table & issues can refresh immediately!
+            if audit_id in ws_connections:
+                t2_msg = {"type": "analyzers_tier2_complete", "status": "analyzing_deep", "audit_id": audit_id}
+                for ws in ws_connections[audit_id]:
+                    try:
+                        asyncio.create_task(ws.send_json(t2_msg))
+                    except Exception:
+                        pass
+
+            # Tier 3: Deep / Enterprise Analyzers (iterative PageRank, Hreflang graph, Content similarity, Accessibility)
+            tier3_analyzers = []
+            if PageRankAnalyzer: tier3_analyzers.append(PageRankAnalyzer(db, audit_id))
+            if HreflangAnalyzer: tier3_analyzers.append(HreflangAnalyzer(db, audit_id))
+            if JsSeoAnalyzer: tier3_analyzers.append(JsSeoAnalyzer(db, audit_id))
+            if CustomSearchAnalyzer: tier3_analyzers.append(CustomSearchAnalyzer(db, audit_id))
+            if ContentAnalyzer: tier3_analyzers.append(ContentAnalyzer(db, audit_id))
+            if AccessibilityAnalyzer: tier3_analyzers.append(AccessibilityAnalyzer(db, audit_id))
             
-            for analyzer in analyzers:
-                await analyzer.analyze()
+            for analyzer in tier3_analyzers:
+                try:
+                    await analyzer.analyze()
+                except Exception as eb:
+                    logger.warning(f"Tier 3 analyzer {analyzer.__class__.__name__} failed: {eb}")
                 
-            summary = await db.get_audit_summary(audit_id)
+            try:
+                summary = await db.get_audit_summary(audit_id)
+            except Exception as es:
+                logger.warning(f"Error getting audit summary for {audit_id}: {es}")
+                pages_cnt = await db.get_pages_count(audit_id)
+                summary = {'total_pages': pages_cnt, 'issues_by_severity': {}}
+
             issues = summary.get('issues_by_severity', {})
             health_score = 100
             health_score -= issues.get('critical', 0) * 2
@@ -235,8 +576,20 @@ async def run_audit_background(audit_id: str, url: str, config, db_path: str):
         import traceback
         traceback.print_exc()
         try:
-            async with Database(db_path) as db:
-                await db.update_audit(audit_id, status='error')
+            async with get_app_db() as db:
+                cnt = await db.get_pages_count(audit_id)
+                if cnt > 0:
+                    # If pages were already crawled, mark as complete so data is preserved
+                    await db.update_audit(audit_id, status='complete', total_pages=cnt)
+                    if audit_id in ws_connections:
+                        message = {"type": "complete", "audit_id": audit_id}
+                        for ws in list(ws_connections[audit_id]):
+                            try:
+                                asyncio.create_task(ws.send_json(message))
+                            except Exception:
+                                pass
+                else:
+                    await db.update_audit(audit_id, status='error')
         except: pass
     finally:
         if audit_id in active_audits:
@@ -254,7 +607,7 @@ async def start_audit(req: AuditRequest, background_tasks: BackgroundTasks):
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
         
-    config.MAX_PAGES = req.max_pages or 500
+    config.MAX_PAGES = req.max_pages if req.max_pages is not None else 0
     config.CRAWL_CONCURRENCY = req.concurrency or 15
     config.CRAWL_DELAY = req.crawl_delay if req.crawl_delay is not None else 0.0
     config.CRAWL_MODE = req.mode or "spider"
@@ -268,16 +621,45 @@ async def start_audit(req: AuditRequest, background_tasks: BackgroundTasks):
     if req.basic_auth and ':' in req.basic_auth:
         u, p = req.basic_auth.split(':', 1)
         config.HTTP_AUTH = {'username': u.strip(), 'password': p.strip()}
-    if req.urls_text:
+    if req.sitemaps_text:
+        config.URLS_LIST = [u.strip() for u in req.sitemaps_text.splitlines() if u.strip()]
+    elif req.sitemaps:
+        config.URLS_LIST = [u.strip() for u in req.sitemaps if u.strip()]
+    elif req.urls_text:
         config.URLS_LIST = [u.strip() for u in req.urls_text.splitlines() if u.strip()]
+    else:
+        config.URLS_LIST = []
+
+    config.RENDERING_MODE = req.rendering_mode or "text"
+    config.CUSTOM_EXTRACTORS = req.custom_extractors or []
+    config.CUSTOM_SEARCH = req.custom_search or []
     
+    # Prevent concurrent crawls corrupting DB: cancel any active tasks first
+    for aid, old_task in list(active_audits.items()):
+        if not old_task.done():
+            logger.info(f"Stopping previous audit {aid} before starting new one")
+            old_task.cancel()
+    active_audits.clear()
+
     import uuid
     from urllib.parse import urlparse
     audit_id = str(uuid.uuid4())
     domain = urlparse(req.url).netloc or req.url
     
-    async with Database(config.DB_PATH) as db:
-        await db.create_audit(audit_id, domain, req.url, json.dumps({"max_pages": req.max_pages, "concurrency": req.concurrency}))
+    async with get_app_db() as db:
+        await db.create_audit(
+            audit_id,
+            domain,
+            req.url,
+            json.dumps({
+                "max_pages": req.max_pages,
+                "concurrency": req.concurrency,
+                "mode": req.mode,
+                "rendering_mode": req.rendering_mode,
+                "custom_extractors": req.custom_extractors,
+                "custom_search": req.custom_search
+            })
+        )
         
     task = asyncio.create_task(run_audit_background(audit_id, req.url, config, config.DB_PATH))
     active_audits[audit_id] = task
@@ -290,8 +672,7 @@ async def stop_audit(audit_id: str):
         task = active_audits[audit_id]
         if not task.done():
             task.cancel()
-    config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         await db.update_audit(audit_id, status="stopped")
     return {"status": "stopped", "audit_id": audit_id}
 
@@ -302,29 +683,166 @@ async def clear_all_data():
     cleanup_all_crawl_data()
     return {"status": "cleared"}
 
+@app.get("/api/audit/list")
+async def list_all_audits():
+    """List all previous audits for selection and comparison."""
+    async with get_app_db() as db:
+        async with db.conn.execute("SELECT id, domain, url, started_at, completed_at, status, total_pages, total_issues, health_score FROM audits ORDER BY started_at DESC LIMIT 50") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+@app.get("/api/audit/compare")
+async def compare_audits(base_id: str = Query(...), compare_id: str = Query(...)):
+    """Compare two audits side-by-side (before vs after migration, staging vs prod)."""
+    async with get_app_db() as db:
+        res = await CrawlComparator.compare(db, base_id, compare_id)
+        return JSONResponse(res)
+
+@app.get("/api/audit/{audit_id}/visualization/graph")
+async def get_audit_visualization_graph(audit_id: str, max_nodes: int = Query(350, ge=10, le=1000)):
+    """Return nodes and links for interactive force-directed site crawl graph."""
+    async with get_app_db() as db:
+        res = await VisualizationGenerator.get_crawl_graph(db, audit_id, max_nodes=max_nodes)
+        return JSONResponse(res)
+
+@app.get("/api/audit/{audit_id}/visualization/tree")
+async def get_audit_visualization_tree(audit_id: str):
+    """Return hierarchical directory tree structure."""
+    async with get_app_db() as db:
+        res = await VisualizationGenerator.get_directory_tree(db, audit_id)
+        return JSONResponse(res)
+
+@app.get("/api/audit/{audit_id}/export/sitemap.xml")
+async def export_sitemap_xml(audit_id: str):
+    """Generate and download standard compliant XML Sitemap."""
+    async with get_app_db() as db:
+        pages = await db.get_pages(audit_id)
+        xml_content = ExportGenerator.generate_sitemap_xml(pages)
+        return Response(
+            content=xml_content,
+            media_type="application/xml",
+            headers={"Content-Disposition": f"attachment; filename=sitemap_{audit_id[:8]}.xml"}
+        )
+
+@app.get("/api/audit/{audit_id}/export/all-inlinks")
+async def export_all_inlinks_csv(audit_id: str):
+    """Bulk export all internal and external inlinks as CSV."""
+    async with get_app_db() as db:
+        links = await db.get_links(audit_id)
+        csv_data = ExportGenerator.export_all_inlinks(links)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=all_inlinks_{audit_id[:8]}.csv"}
+        )
+
+@app.get("/api/audit/{audit_id}/export/all-outlinks")
+async def export_all_outlinks_csv(audit_id: str):
+    """Bulk export all outlinks as CSV."""
+    async with get_app_db() as db:
+        links = await db.get_links(audit_id)
+        csv_data = ExportGenerator.export_all_inlinks(links)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=all_outlinks_{audit_id[:8]}.csv"}
+        )
+
+@app.get("/api/audit/{audit_id}/export/all-images")
+async def export_all_images_csv(audit_id: str):
+    """Bulk export all images with alt text audit as CSV."""
+    async with get_app_db() as db:
+        images = await db.get_images(audit_id)
+        csv_data = ExportGenerator.export_all_images(images)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=all_images_{audit_id[:8]}.csv"}
+        )
+
+@app.get("/api/audit/{audit_id}/export/redirect-chains")
+async def export_redirect_chains_csv(audit_id: str):
+    """Bulk export all redirection chains as CSV."""
+    async with get_app_db() as db:
+        pages = await db.get_pages(audit_id)
+        csv_data = ExportGenerator.export_redirect_chains(pages)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=redirect_chains_{audit_id[:8]}.csv"}
+        )
+
+@app.get("/api/proxy/screenshot/{audit_id}/{filename}")
+async def get_page_screenshot(audit_id: str, filename: str):
+    shot_path = os.path.join(os.getcwd(), "data", "screenshots", audit_id, filename)
+    if os.path.exists(shot_path):
+        return FileResponse(shot_path, media_type="image/jpeg")
+    raise HTTPException(status_code=404, detail="Screenshot not found")
+
 
 @app.get("/audit/{audit_id}", response_class=HTMLResponse)
 async def audit_status(request: Request, audit_id: str):
-    config = get_config()
-    async with Database(config.DB_PATH) as db:
-        audit = await db.get_audit(audit_id)
-        if not audit:
-            raise HTTPException(status_code=404, detail="Audit not found")
-        if audit['status'] == 'complete':
-            return RedirectResponse(url=f"/audit/{audit_id}/pages")
-        return render(request, "progress.html", {"audit": audit})
+    # Direct users immediately to the live Spider Workspace table
+    return RedirectResponse(url=f"/?audit_id={audit_id}&tab=all")
 
 @app.websocket("/ws/audit/{audit_id}")
 async def websocket_endpoint(websocket: WebSocket, audit_id: str):
     await websocket.accept()
     if audit_id not in ws_connections:
         ws_connections[audit_id] = []
+    if len(ws_connections[audit_id]) >= 5:
+        old_ws = ws_connections[audit_id].pop(0)
+        try:
+            await old_ws.close(code=1008, reason="Connection replaced")
+        except Exception:
+            pass
     ws_connections[audit_id].append(websocket)
+    
+    # Send initial state immediately upon connection
+    try:
+        config = get_config()
+        async with get_app_db() as db:
+            audit = await db.get_audit(audit_id)
+            if audit:
+                pages_cnt = await db.get_pages_count(audit_id)
+                existing_pages = await db.get_pages(audit_id)
+                page_rows = [
+                    {
+                        "id": p.get("id"),
+                        "url": p.get("url"),
+                        "status_code": p.get("status_code"),
+                        "content_type": p.get("content_type"),
+                        "response_time": p.get("response_time_ms"),
+                        "size_bytes": p.get("size_bytes"),
+                        "crawl_depth": p.get("crawl_depth"),
+                        "title": p.get("title"),
+                        "meta_description": p.get("meta_description"),
+                        "h1": p.get("h1"),
+                        "canonical_url": p.get("canonical_url"),
+                        "word_count": p.get("word_count"),
+                        "indexability": "Indexable" if p.get("is_indexable") else "Non-Indexable",
+                    }
+                    for p in existing_pages[:500]
+                ]
+                await websocket.send_json({
+                    "type": "initial_state",
+                    "audit_id": audit_id,
+                    "status": audit.get('status', 'crawling'),
+                    "crawled": pages_cnt,
+                    "max_pages": getattr(config, 'MAX_PAGES', 0),
+                    "page_rows": page_rows,
+                })
+    except Exception as e:
+        logger.debug(f"Initial ws state check notice: {e}")
+
     try:
         while True:
             await websocket.receive_text()
-    except WebSocketDisconnect:
-        ws_connections[audit_id].remove(websocket)
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        if audit_id in ws_connections and websocket in ws_connections[audit_id]:
+            ws_connections[audit_id].remove(websocket)
 
 def get_context(request: Request, audit: dict, active_tab: str, **kwargs):
     ctx = {"request": request, "audit": audit, "active_tab": active_tab}
@@ -431,7 +949,7 @@ async def shopify_pixels_sink(path: str):
 @app.get("/audit/{audit_id}/report", response_class=HTMLResponse)
 async def audit_report(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -460,7 +978,7 @@ async def audit_issues(
     q: Optional[str] = None
 ):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -771,7 +1289,7 @@ async def render_spider_workspace(
     sort: Optional[str] = 'status'
 ):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         recent_audits = await db.list_audits()
         target_audit = None
         if audit_id:
@@ -929,6 +1447,10 @@ async def render_spider_workspace(
         sort=sort or 'status'
     )
 
+    has_hreflang = any(p.get('hreflang_occurrence', 0) > 0 for p in enriched_pages)
+    has_structured_data = any(p.get('schema_count', 0) > 0 for p in enriched_pages)
+    has_accessibility = any(p.get('accessibility_violations_total', 0) > 0 for p in enriched_pages)
+
     ctx = get_context(
         request, target_audit, "pages",
         pages=filtered_pages[:50],
@@ -956,7 +1478,10 @@ async def render_spider_workspace(
         current_exclude=exclude or '',
         current_sort=sort or 'status',
         search_query=q or '',
-        recent_audits=recent_audits
+        recent_audits=recent_audits,
+        has_hreflang=has_hreflang,
+        has_structured_data=has_structured_data,
+        has_accessibility=has_accessibility
     )
     return render(request, "pages.html", ctx)
 
@@ -977,6 +1502,10 @@ async def dashboard_spa(
     q: Optional[str] = None,
     sort: Optional[str] = 'status'
 ):
+    react_index = os.path.join(PROJECT_ROOT, "frontend", "dist", "index.html")
+    if os.path.exists(react_index):
+        return FileResponse(react_index)
+
     return await render_spider_workspace(
         request, audit_id=audit_id, tab=tab, status=status, indexable=indexable,
         page_type=page_type, content_type=content_type, depth=depth, word_count=word_count,
@@ -1000,6 +1529,10 @@ async def audit_pages(
     q: Optional[str] = None,
     sort: Optional[str] = 'status'
 ):
+    react_index = os.path.join(PROJECT_ROOT, "frontend", "dist", "index.html")
+    if os.path.exists(react_index):
+        return FileResponse(react_index)
+
     return await render_spider_workspace(
         request, audit_id=audit_id, tab=tab, status=status, indexable=indexable,
         page_type=page_type, content_type=content_type, depth=depth, word_count=word_count,
@@ -1009,7 +1542,7 @@ async def audit_pages(
 @app.get("/api/audit/{audit_id}/page/{page_id}/inspector")
 async def get_page_inspector(audit_id: str, page_id: int):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1072,16 +1605,7 @@ async def get_page_inspector(audit_id: str, page_id: int):
         ]
         
         db_issues = await db.get_issues(audit_id, page_id=page_id)
-        issues = [
-            {
-                'severity': i.get('severity', 'info'),
-                'issue_type': (i.get('issue_type') or '').replace('_', ' ').title(),
-                'category': i.get('category', 'general'),
-                'message': i.get('message', ''),
-                'recommendation': i.get('recommendation', '')
-            }
-            for i in db_issues
-        ]
+        issues = build_page_issues(page, db_issues)
         
         # New Phase 1 tables queries for inspector expansion
         db_resources = await db.get_resources(audit_id, page_id=page_id)
@@ -1122,6 +1646,60 @@ async def get_page_inspector(audit_id: str, page_id: int):
         if not raw_html and page.get('url') and 'text/html' in (page.get('content_type') or ''):
             raw_html = await get_page_raw_html_safe(page.get('url'))
 
+        # Redirect chain details
+        chain_details_raw = page.get('redirect_chain_details')
+        chain_details = []
+        if chain_details_raw:
+            try:
+                chain_details = json.loads(chain_details_raw) if isinstance(chain_details_raw, str) else chain_details_raw
+            except Exception:
+                chain_details = []
+        if not chain_details and (page.get('redirect_url') or (page.get('status_code') and 300 <= page.get('status_code') < 400)):
+            p_url = page.get('url') or ''
+            redir_u = page.get('redirect_url') or p_url
+            chain_details = [
+                {
+                    "url": p_url,
+                    "status": page.get('status_code') or 301,
+                    "type": page.get('redirect_type') or f"{page.get('status_code')} Redirect",
+                    "protocol": urlparse(p_url).scheme.upper() if p_url else 'HTTP',
+                    "domain": urlparse(p_url).netloc if p_url else ''
+                },
+                {
+                    "url": redir_u,
+                    "status": 200,
+                    "type": "200 Final",
+                    "protocol": urlparse(redir_u).scheme.upper() if redir_u else 'HTTP',
+                    "domain": urlparse(redir_u).netloc if redir_u else ''
+                }
+            ]
+
+    # Parse JSON fields safely
+    custom_ext = {}
+    if page.get('custom_extractions_json'):
+        try: custom_ext = json.loads(page.get('custom_extractions_json'))
+        except Exception: pass
+
+    custom_srch = {}
+    if page.get('custom_search_json'):
+        try: custom_srch = json.loads(page.get('custom_search_json'))
+        except Exception: pass
+
+    hreflang_iss = []
+    if page.get('hreflang_issues_json'):
+        try: hreflang_iss = json.loads(page.get('hreflang_issues_json'))
+        except Exception: pass
+
+    schema_val = []
+    if page.get('schema_validation_json'):
+        try: schema_val = json.loads(page.get('schema_validation_json'))
+        except Exception: pass
+
+    full_chain = chain_details
+    if page.get('redirect_chain_json'):
+        try: full_chain = json.loads(page.get('redirect_chain_json'))
+        except Exception: pass
+
     return JSONResponse({
         "page": enriched_p,
         "inlinks": inlinks,
@@ -1130,6 +1708,11 @@ async def get_page_inspector(audit_id: str, page_id: int):
         "structured_data": sd_list,
         "issues": issues,
         "headers": headers,
+        "redirect_chain_details": full_chain,
+        "custom_extractions": custom_ext,
+        "custom_search": custom_srch,
+        "hreflang_issues": hreflang_iss,
+        "schema_validation": schema_val,
         "serp": {
             "title": enriched_p.get('title') or 'No title set',
             "url": enriched_p.get('url', ''),
@@ -1146,6 +1729,78 @@ async def get_page_inspector(audit_id: str, page_id: int):
         "hreflang": db_hreflang
     })
 
+@app.get("/api/audit/{audit_id}/pages/data")
+async def get_audit_pages_data(
+    audit_id: str,
+    tab: Optional[str] = 'all',
+    status: Optional[str] = 'all',
+    indexable: Optional[str] = 'all',
+    page_type: Optional[str] = 'all',
+    content_type: Optional[str] = 'all',
+    depth: Optional[str] = 'all',
+    word_count: Optional[str] = 'all',
+    issues: Optional[str] = 'all',
+    include: Optional[str] = None,
+    exclude: Optional[str] = None,
+    q: Optional[str] = None,
+    sort: Optional[str] = 'status',
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10000, ge=1, le=50000)
+):
+    config = get_config()
+    async with get_app_db() as db:
+        target_audit = await db.get_audit(audit_id)
+        if not target_audit:
+            raise HTTPException(status_code=404, detail="Audit not found")
+        raw_pages = await db.get_pages(audit_id)
+        raw_issues = await db.get_issues(audit_id)
+        all_links = await db.get_links(audit_id)
+        all_images = await db.get_images(audit_id)
+        all_sd = await db.get_structured_data(audit_id)
+
+    enriched_pages = enrich_pages_master(raw_pages, target_audit, raw_issues, all_links, all_images, all_sd)
+    tab_clean = (tab or 'all').lower()
+    base_pool = enriched_pages
+    if tab_clean == 'internal':
+        base_pool = [p for p in base_pool if p['url_type'] == 'Internal']
+    elif tab_clean == 'external':
+        base_pool = [p for p in base_pool if p['url_type'] == 'External']
+    elif tab_clean == 'images':
+        base_pool = [p for p in base_pool if 'image' in (p.get('mime_type') or '').lower() or 'image' in (p.get('content_type') or '').lower()]
+    elif tab_clean == 'response_codes':
+        base_pool = sorted(base_pool, key=lambda p: p['status_code'], reverse=True)
+    elif tab_clean in ('page_titles', 'meta_description', 'h1', 'content'):
+        base_pool = [p for p in base_pool if 'html' in (p.get('content_type') or '').lower()]
+    elif tab_clean == 'canonicals':
+        base_pool = [p for p in base_pool if p.get('canonical_url') and p.get('canonical_url') != '—']
+
+    filtered_pages = filter_and_sort_pages(
+        base_pool,
+        status=status or 'all',
+        indexable=indexable or 'all',
+        page_type=page_type or 'all',
+        content_type=content_type or 'all',
+        depth=depth or 'all',
+        word_count=word_count or 'all',
+        issues=issues or 'all',
+        include=include,
+        exclude=exclude,
+        q=q,
+        sort=sort or 'status'
+    )
+
+    start_idx = (page - 1) * page_size
+    paged = filtered_pages[start_idx:start_idx + page_size]
+
+    return JSONResponse({
+        "pages": paged,
+        "total": len(enriched_pages),
+        "filtered_count": len(filtered_pages),
+        "page": page,
+        "page_size": page_size,
+        "has_more": (start_idx + page_size) < len(filtered_pages)
+    })
+
 @app.get("/api/audit/{audit_id}/tab/{tab_key}")
 async def get_audit_tab_data(
     audit_id: str,
@@ -1158,23 +1813,37 @@ async def get_audit_tab_data(
     page_size: int = Query(50000, ge=1, le=50000)
 ):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
         
+        is_crawling = (audit.get('status') == 'crawling')
         raw_pages = await db.get_pages(audit_id)
-        raw_issues = await db.get_issues(audit_id)
-        all_links = await db.get_links(audit_id)
-        all_images = await db.get_images(audit_id)
-        all_sd = await db.get_structured_data(audit_id)
         
-        clean_tab = tab_key.lower().replace('-', '_').strip()
-        headings = await db.get_headings(audit_id=audit_id) if clean_tab in ('internal', 'h1', 'h2') else []
-        pagination_tags = await db.get_pagination_tags(audit_id) if clean_tab == 'pagination' else []
-        hreflang_tags = await db.get_hreflang_tags(audit_id) if clean_tab == 'hreflang' else []
-        sitemap_entries = await db.get_sitemap_entries(audit_id) if clean_tab == 'sitemaps' else []
-        accessibility_violations = await db.get_accessibility_violations(audit_id) if clean_tab == 'accessibility' else []
+        # When actively crawling, skip heavy relational joins so table API responds instantaneously
+        if is_crawling:
+            raw_issues = []
+            all_links = []
+            all_images = []
+            all_sd = []
+            headings = []
+            pagination_tags = []
+            hreflang_tags = []
+            sitemap_entries = []
+            accessibility_violations = []
+        else:
+            raw_issues = await db.get_issues(audit_id)
+            all_links = await db.get_links(audit_id)
+            all_images = await db.get_images(audit_id)
+            all_sd = await db.get_structured_data(audit_id)
+            
+            clean_tab = tab_key.lower().replace('-', '_').strip()
+            headings = await db.get_headings(audit_id=audit_id) if clean_tab in ('internal', 'h1', 'h2') else []
+            pagination_tags = await db.get_pagination_tags(audit_id) if clean_tab == 'pagination' else []
+            hreflang_tags = await db.get_hreflang_tags(audit_id) if clean_tab == 'hreflang' else []
+            sitemap_entries = await db.get_sitemap_entries(audit_id) if clean_tab == 'sitemaps' else []
+            accessibility_violations = await db.get_accessibility_violations(audit_id) if clean_tab == 'accessibility' else []
 
     enriched = enrich_base_page_data(raw_pages, audit, raw_issues, all_links, all_images, all_sd)
     dataset = build_tab_dataset(
@@ -1206,13 +1875,14 @@ async def get_audit_tab_data(
         "rows": paginated_rows,
         "total": total,
         "page": page,
-        "page_size": page_size
+        "page_size": page_size,
+        "has_more": (page * page_size) < total
     })
 
 @app.get("/api/audit/{audit_id}/right-panel/issues")
 async def get_right_panel_issues(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1226,7 +1896,7 @@ async def get_right_panel_issues(audit_id: str):
 @app.get("/api/audit/{audit_id}/right-panel/site-structure")
 async def get_right_panel_site_structure(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1243,7 +1913,7 @@ async def get_right_panel_site_structure(audit_id: str):
 @app.get("/api/audit/{audit_id}/right-panel/response-times")
 async def get_right_panel_response_times(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1255,7 +1925,7 @@ async def get_right_panel_response_times(audit_id: str):
 @app.get("/api/audit/{audit_id}/right-panel/depth")
 async def get_right_panel_depth(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1267,7 +1937,7 @@ async def get_right_panel_depth(audit_id: str):
 @app.get("/api/audit/{audit_id}/right-panel/segments")
 async def get_right_panel_segments(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1295,7 +1965,7 @@ async def export_urls_csv(
     sort: Optional[str] = 'status'
 ):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1415,7 +2085,7 @@ async def get_page_tech_safe(url: str, headers: Dict[str, str]) -> Dict[str, lis
 @app.get("/audit/{audit_id}/page/{page_id}", response_class=HTMLResponse)
 async def audit_page_detail(request: Request, audit_id: str, page_id: int):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1530,6 +2200,34 @@ async def audit_page_detail(request: Request, audit_id: str, page_id: int):
     sitemap_status = "Present in XML Sitemap (/sitemap.xml)" if (enriched_page.get('status_code') == 200 and enriched_page.get('indexability') == 'Indexable') else "Not in Sitemap / Excluded"
     sitemap_url = f"{urlparse(enriched_page['url']).scheme}://{urlparse(enriched_page['url']).netloc}/sitemap.xml"
 
+    # Parse redirect chain details
+    chain_details_raw = enriched_page.get('redirect_chain_details')
+    chain_details = []
+    if chain_details_raw:
+        try:
+            chain_details = json.loads(chain_details_raw) if isinstance(chain_details_raw, str) else chain_details_raw
+        except Exception:
+            chain_details = []
+    if not chain_details and (enriched_page.get('redirect_url') or (enriched_page.get('status_code') and 300 <= enriched_page.get('status_code') < 400)):
+        p_url = enriched_page.get('url') or ''
+        redir_u = enriched_page.get('redirect_url') or p_url
+        chain_details = [
+            {
+                "url": p_url,
+                "status": enriched_page.get('status_code') or 301,
+                "type": enriched_page.get('redirect_type') or f"{enriched_page.get('status_code')} Redirect",
+                "protocol": urlparse(p_url).scheme.upper() if p_url else 'HTTP',
+                "domain": urlparse(p_url).netloc if p_url else ''
+            },
+            {
+                "url": redir_u,
+                "status": 200,
+                "type": "200 Final",
+                "protocol": urlparse(redir_u).scheme.upper() if redir_u else 'HTTP',
+                "domain": urlparse(redir_u).netloc if redir_u else ''
+            }
+        ]
+
     technical_data = {
         'canonical': can_url,
         'canonical_status': can_status,
@@ -1542,7 +2240,8 @@ async def audit_page_detail(request: Request, audit_id: str, page_id: int):
         'schema_count': len(sd_list),
         'sitemap_presence': sitemap_status,
         'sitemap_url': sitemap_url,
-        'http_headers': http_headers
+        'http_headers': http_headers,
+        'redirect_chain': chain_details
     }
 
     # 6. Performance & Core Web Vitals Data
@@ -1626,7 +2325,7 @@ async def audit_page_detail(request: Request, audit_id: str, page_id: int):
 @app.get("/audit/{audit_id}/keywords", response_class=HTMLResponse)
 async def audit_keywords(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         keywords = await db.get_keywords(audit_id)
         # Process top keywords
@@ -1639,7 +2338,7 @@ async def audit_keywords(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/links", response_class=HTMLResponse)
 async def audit_links(request: Request, audit_id: str, status: Optional[str] = None, q: Optional[str] = None):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1700,7 +2399,7 @@ async def audit_links(request: Request, audit_id: str, status: Optional[str] = N
 @app.get("/audit/{audit_id}/images", response_class=HTMLResponse)
 async def audit_images(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         images = await db.get_images(audit_id)
         missing_alt = [i for i in images if not i.get('alt_text')]
@@ -1710,7 +2409,7 @@ async def audit_images(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/performance", response_class=HTMLResponse)
 async def audit_performance(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
@@ -1743,7 +2442,7 @@ async def audit_performance(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/structured-data", response_class=HTMLResponse)
 async def audit_structured_data(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         sd = await db.get_structured_data(audit_id)
         types_count = {}
@@ -1754,7 +2453,7 @@ async def audit_structured_data(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/pagerank", response_class=HTMLResponse)
 async def audit_pagerank(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         pages = await db.get_pages(audit_id)
         sorted_pages = sorted(pages, key=lambda x: x.get('internal_pagerank', 0.0) or 0.0, reverse=True)
@@ -1763,7 +2462,7 @@ async def audit_pagerank(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/hreflang", response_class=HTMLResponse)
 async def audit_hreflang(request: Request, audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         tags = await db.get_hreflang_tags(audit_id)
     return render(request, "hreflang.html", get_context(request, audit, "hreflang", tags=tags))
@@ -1771,7 +2470,7 @@ async def audit_hreflang(request: Request, audit_id: str):
 @app.get("/audit/{audit_id}/compare", response_class=HTMLResponse)
 async def audit_compare_view(request: Request, audit_id: str, with_id: Optional[str] = None):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         all_audits = await db.list_audits()
         diff_data = None
@@ -1786,7 +2485,7 @@ async def audit_compare_view(request: Request, audit_id: str, with_id: Optional[
 @app.get("/api/audit/{audit_id}/status")
 async def api_audit_status(audit_id: str):
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         audit = await db.get_audit(audit_id)
         if not audit: return {"error": "not found"}
         return {"status": audit['status'], "pages_crawled": audit.get('total_pages', 0), "total_issues": audit.get('total_issues', 0), "health_score": audit.get('health_score', 0)}
@@ -1796,7 +2495,7 @@ async def api_audit_export(audit_id: str, format: str):
     if not ReportGenerator:
         raise HTTPException(status_code=500, detail="ReportGenerator not available")
     config = get_config()
-    async with Database(config.DB_PATH) as db:
+    async with get_app_db() as db:
         gen = ReportGenerator(db, audit_id, config.REPORTS_DIR)
         if format == 'docx':
             path = await gen.generate_docx()

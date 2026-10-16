@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 space-y-6">
+<div class="max-w-4xl mx-auto py-8 space-y-6">
 
     <div class="bg-white rounded-lg shadow-sm border border-[#E5E0D8] p-8 text-center">
         <!-- Animated Radar Indicator -->
@@ -11,55 +11,99 @@
         </div>
 
         <h2 class="text-2xl font-black text-slate-900 tracking-tight mb-1">Auditing Website</h2>
-        <p class="text-slate-500 text-sm font-mono break-all mb-8" id="auditUrl">{{ audit.url }}</p>
+        <p class="text-slate-500 text-sm font-mono break-all mb-6" id="auditUrl">{{ audit.url }}</p>
 
         <!-- Progress Steps -->
-        <div class="grid grid-cols-4 gap-2 mb-8 text-left">
+        <div class="grid grid-cols-4 gap-2 mb-6 text-left">
             <div id="step-1" class="p-3 rounded-lg border border-orange-500 bg-orange-50/50 transition-all">
-                <span class="block text-[10px] font-bold font-mono uppercase text-orange-700">STEP 1</span>
-                <span class="block text-xs font-semibold text-slate-900 mt-0.5">Crawl Pages</span>
+                <span class="block text-[10px] font-bold font-mono uppercase text-orange-700">STAGE 1</span>
+                <span class="block text-xs font-semibold text-slate-900 mt-0.5">Crawl &amp; Discovery</span>
             </div>
             <div id="step-2" class="p-3 rounded-lg border border-[#E5E0D8] bg-[#F8F6F1] transition-all">
-                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STEP 2</span>
-                <span class="block text-xs font-semibold text-slate-600 mt-0.5">SEO Checks</span>
+                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STAGE 2</span>
+                <span class="block text-xs font-semibold text-slate-600 mt-0.5">Core SEO Analysis</span>
             </div>
             <div id="step-3" class="p-3 rounded-lg border border-[#E5E0D8] bg-[#F8F6F1] transition-all">
-                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STEP 3</span>
-                <span class="block text-xs font-semibold text-slate-600 mt-0.5">Speed & Vitals</span>
+                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STAGE 3</span>
+                <span class="block text-xs font-semibold text-slate-600 mt-0.5">Deep Tier-2 Checks</span>
             </div>
             <div id="step-4" class="p-3 rounded-lg border border-[#E5E0D8] bg-[#F8F6F1] transition-all">
-                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STEP 4</span>
-                <span class="block text-xs font-semibold text-slate-600 mt-0.5">Visual Report</span>
+                <span class="block text-[10px] font-bold font-mono uppercase text-slate-400">STAGE 4</span>
+                <span class="block text-xs font-semibold text-slate-600 mt-0.5">Ready / Report</span>
             </div>
         </div>
 
-        <!-- Progress Bar & Speed Strip -->
+        <!-- Live Statistics Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-6 text-left font-mono">
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] p-2.5 rounded-lg">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Crawl Speed</span>
+                <span id="crawlSpeed" class="text-sm font-bold text-emerald-700">0.0 p/s</span>
+            </div>
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] p-2.5 rounded-lg">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Avg Response</span>
+                <span id="avgResponse" class="text-sm font-bold text-slate-800">— ms</span>
+            </div>
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] p-2.5 rounded-lg">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Memory</span>
+                <span id="memoryUsage" class="text-sm font-bold text-slate-800">— MB</span>
+            </div>
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] p-2.5 rounded-lg">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Frontier Queue</span>
+                <span id="queueCount" class="text-sm font-bold text-slate-800">0 pending</span>
+            </div>
+            <div class="bg-[#F8F6F1] border border-[#E5E0D8] p-2.5 rounded-lg">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Errors / Retries</span>
+                <span id="errorCount" class="text-sm font-bold text-slate-800">0</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar & Counter Strip -->
         <div class="mb-4">
             <div class="flex items-center justify-between text-xs font-mono font-semibold text-slate-700 mb-2">
                 <div class="flex items-center gap-2">
                     <span id="stageLabel">Crawling Website Pages</span>
-                    <span id="crawlSpeed" class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">0.0 p/s</span>
+                    <span id="modeBadge" class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold">Unlimited Mode</span>
                 </div>
                 <div class="flex items-center gap-3">
                     <span id="elapsedTimer" class="text-slate-400 font-normal">Elapsed: 00:00</span>
-                    <span id="counter" class="text-slate-900 font-bold">0 Pages</span>
+                    <span id="counter" class="text-slate-900 font-bold">0 Pages Crawled</span>
                 </div>
             </div>
             <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-[#E5E0D8]">
-                <div class="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full transition-all duration-300 shadow-xs" id="progressBar" style="width: 5%"></div>
+                <div class="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full transition-all duration-300 shadow-xs progress-indeterminate" id="progressBar" style="width: 100%"></div>
             </div>
         </div>
 
+        <!-- Current URL visiting status -->
         <div class="text-xs text-slate-500 font-mono mb-6 truncate text-left bg-[#F8F6F1] p-2.5 rounded-lg border border-[#E5E0D8] flex items-center justify-between" id="currentUrlContainer">
             <span class="truncate" id="currentUrl">Initializing high-speed crawl engine...</span>
-            <span class="text-[10px] text-slate-400 shrink-0 ml-2 font-mono">15-20 Parallel Workers</span>
+            <a href="/audit/{{ audit.id }}/pages" class="text-[11px] font-bold text-orange-600 hover:text-orange-700 underline shrink-0 ml-3">
+                Open Workspace Now &rarr;
+            </a>
         </div>
 
-        <!-- Terminal Log Box -->
-        <div class="text-left">
-            <span class="block text-xs font-bold text-slate-700 uppercase tracking-wider font-mono mb-2">Live Engine Stream</span>
-            <div class="border border-[#E5E0D8] rounded-md bg-slate-900 p-4 h-48 overflow-y-auto text-[11px] font-mono text-slate-300 space-y-1" id="logBox">
-                <div class="text-emerald-400 font-bold">● High-speed async engine initialized with connection pooling &amp; WAL mode.</div>
+        <!-- Split Bottom: Mini Live Discovered Preview & Live Terminal -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-left">
+            <!-- Mini Live Table Preview -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">Live Discovered Pages</span>
+                    <span class="text-[10px] font-mono text-slate-400" id="livePreviewCount">0 streaming</span>
+                </div>
+                <div class="border border-[#E5E0D8] rounded-md bg-white h-48 overflow-y-auto text-[11px] font-mono divide-y divide-[#EDE9E1]" id="miniTablePreview">
+                    <div class="p-3 text-center text-slate-400 italic">Pages will appear here as they are fetched...</div>
+                </div>
+            </div>
+
+            <!-- Terminal Log Box -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">Live Engine Stream</span>
+                    <span class="text-[10px] font-mono text-emerald-600 font-bold">● Active Socket</span>
+                </div>
+                <div class="border border-[#E5E0D8] rounded-md bg-slate-900 p-3 h-48 overflow-y-auto text-[11px] font-mono text-slate-300 space-y-1" id="logBox">
+                    <div class="text-emerald-400 font-bold">● High-speed async engine initialized with connection pooling &amp; WAL mode.</div>
+                </div>
             </div>
         </div>
     </div>
@@ -68,11 +112,17 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/state.js"></script>
 <script src="/static/js/websocket.js"></script>
 <script>
     const auditId = "{{ audit.id }}";
     const logBox = document.getElementById('logBox');
+    const miniTablePreview = document.getElementById('miniTablePreview');
     const startTime = Date.now();
+    let isUnlimitedMode = true;
+    let targetMaxPages = 0;
+    let crawledCount = 0;
+    let discoveredRows = [];
 
     // Elapsed timer loop
     const timerInterval = setInterval(() => {
@@ -91,42 +141,117 @@
         logBox.scrollTop = logBox.scrollHeight;
     }
 
-    let crawledCount = 0;
+    function addMiniTableRow(row) {
+        if (!row || !row.url) return;
+        if (discoveredRows.length === 0) {
+            miniTablePreview.innerHTML = '';
+        }
+        discoveredRows.unshift(row);
+        if (discoveredRows.length > 25) discoveredRows.pop();
 
+        const item = document.createElement('div');
+        const sc = row.status_code || 200;
+        let scBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        if (sc >= 300 && sc < 400) scBadge = 'bg-amber-50 text-amber-700 border-amber-200';
+        else if (sc >= 400) scBadge = 'bg-rose-50 text-rose-700 border-rose-200';
+
+        item.className = 'p-2 flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors';
+        item.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="px-1.5 py-0.2 rounded border text-[10px] font-bold ${scBadge}">${sc}</span>
+                <span class="truncate text-slate-800 text-[11px]" title="${row.url}">${row.url}</span>
+            </div>
+            <span class="text-[10px] text-slate-400 shrink-0">${row.response_time ? row.response_time + 'ms' : ''}</span>
+        `;
+        miniTablePreview.insertBefore(item, miniTablePreview.firstChild);
+        const countEl = document.getElementById('livePreviewCount');
+        if (countEl) countEl.innerText = `${discoveredRows.length} recent`;
+    }
+
+    // Connect WebSocket
     connectToAudit(auditId, (data) => {
         crawledCount = data.crawled || crawledCount;
-        const elapsedSec = Math.max(0.5, (Date.now() - startTime) / 1000);
-        const velocity = (crawledCount / elapsedSec).toFixed(1);
+        const maxPages = data.max_pages !== undefined ? data.max_pages : 0;
+        isUnlimitedMode = (maxPages === 0);
+        targetMaxPages = maxPages;
 
-        document.getElementById('counter').innerText = `${crawledCount} Pages`;
+        // Mode badge & counter
+        const modeBadge = document.getElementById('modeBadge');
+        const counterEl = document.getElementById('counter');
+        const progressBar = document.getElementById('progressBar');
+
+        if (isUnlimitedMode) {
+            if (modeBadge) modeBadge.innerText = 'Unlimited Mode';
+            if (counterEl) counterEl.innerText = `${crawledCount} Pages Crawled`;
+            if (progressBar && !progressBar.classList.contains('progress-indeterminate')) {
+                progressBar.classList.add('progress-indeterminate');
+                progressBar.style.width = '100%';
+            }
+        } else {
+            const pct = Math.min(100, Math.round((crawledCount / maxPages) * 100));
+            if (modeBadge) modeBadge.innerText = `Limit: ${maxPages}`;
+            if (counterEl) counterEl.innerText = `${crawledCount} / ${maxPages} Pages (${pct}%)`;
+            if (progressBar) {
+                progressBar.classList.remove('progress-indeterminate');
+                progressBar.style.width = `${Math.max(4, pct)}%`;
+            }
+        }
+
+        // Live stats strip
+        const velocity = data.pages_per_sec !== undefined ? data.pages_per_sec : (crawledCount / Math.max(0.5, (Date.now() - startTime) / 1000)).toFixed(1);
         document.getElementById('crawlSpeed').innerText = `${velocity} p/s`;
-        document.getElementById('currentUrl').innerText = `Visiting: ${data.url || 'Analyzing...'}`;
-        
-        if (data.total > 0) {
-            const pct = Math.min(92, Math.max(8, Math.round((data.crawled / data.total) * 100)));
-            document.getElementById('progressBar').style.width = `${pct}%`;
-        }
-
-        if (crawledCount > 5) {
-            document.getElementById('step-2').className = 'p-3 rounded-lg border border-orange-500 bg-orange-50/50 transition-all';
-            document.getElementById('step-2').querySelector('span').className = 'block text-[10px] font-bold font-mono uppercase text-orange-700';
-            document.getElementById('step-2').querySelectorAll('span')[1].className = 'block text-xs font-semibold text-slate-900 mt-0.5';
-        }
+        if (data.avg_response_ms) document.getElementById('avgResponse').innerText = `${data.avg_response_ms} ms`;
+        if (data.memory_mb) document.getElementById('memoryUsage').innerText = `${data.memory_mb} MB`;
+        if (data.queue_size !== undefined) document.getElementById('queueCount').innerText = `${data.queue_size} pending`;
+        if (data.errors !== undefined) document.getElementById('errorCount').innerText = `${data.errors}`;
 
         if (data.url) {
-            addLog(`→ GET 200 OK: ${data.url}`);
+            document.getElementById('currentUrl').innerText = `Visiting: ${data.url}`;
+            addLog(`→ [${data.status_code || 200}] ${data.url}`);
+            addMiniTableRow({ url: data.url, status_code: data.status_code || 200, response_time: data.avg_response_ms || 0 });
+        }
+
+        // Step progression
+        if (crawledCount >= 5) {
+            const s2 = document.getElementById('step-2');
+            if (s2) {
+                s2.className = 'p-3 rounded-lg border border-orange-500 bg-orange-50/50 transition-all';
+                s2.querySelector('span').className = 'block text-[10px] font-bold font-mono uppercase text-orange-700';
+                s2.querySelectorAll('span')[1].className = 'block text-xs font-semibold text-slate-900 mt-0.5';
+            }
         }
     }, () => {
-        // Complete
+        // Crawl complete
         clearInterval(timerInterval);
-        document.getElementById('progressBar').style.width = '100%';
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.classList.remove('progress-indeterminate');
+            progressBar.style.width = '100%';
+        }
         document.getElementById('stageLabel').innerText = 'Audit Complete! Opening Report...';
         document.getElementById('step-3').className = 'p-3 rounded-lg border border-orange-500 bg-orange-50/50 transition-all';
         document.getElementById('step-4').className = 'p-3 rounded-lg border border-emerald-500 bg-emerald-50/50 transition-all';
-        addLog('✔ Crawl complete. All 14 analyzers finished. Redirecting to report...', 'text-emerald-400 font-bold');
+        addLog('✔ Crawl complete. All analyzers finished. Redirecting to report...', 'text-emerald-400 font-bold');
         setTimeout(() => {
             window.location.href = `/audit/${auditId}/report`;
-        }, 800);
+        }, 900);
     });
+
+    // Listen for live page row streaming
+    window.onCrawlPageRow = function(row) {
+        addMiniTableRow(row);
+    };
+
+    window.onCrawlTier2Progress = function(data) {
+        const s3 = document.getElementById('step-3');
+        if (s3) {
+            s3.className = 'p-3 rounded-lg border border-orange-500 bg-orange-50/50 transition-all';
+            s3.querySelector('span').className = 'block text-[10px] font-bold font-mono uppercase text-orange-700';
+            s3.querySelectorAll('span')[1].className = 'block text-xs font-semibold text-slate-900 mt-0.5';
+        }
+        document.getElementById('stageLabel').innerText = `Stage 3: Deep Tier-2 Checks (${data.stage || 'Analyzing'})...`;
+        addLog(`⚡ Tier-2: ${data.stage || 'Running deep audits'}...`, 'text-amber-400');
+    };
 </script>
 {% endblock %}
+

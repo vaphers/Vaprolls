@@ -3,11 +3,18 @@ import asyncio
 import os
 import sys
 import time
+import uuid
+from urllib.parse import urlparse
 from typing import Dict, Any
 
 from config import get_config
 from database.db import Database
 from crawler.engine import CrawlEngine
+try:
+    from crawler.go_client import GoCrawlerClient
+except ImportError:
+    GoCrawlerClient = None
+
 from analyzers.technical import TechnicalAnalyzer
 from analyzers.onpage import OnPageAnalyzer
 from analyzers.links import LinkAnalyzer
@@ -186,8 +193,58 @@ async def run_audit(args):
             sys.stdout.write(f"\r[{crawled}/{total}] Crawling: {current_url[:60]:<60}")
             sys.stdout.flush()
             
-        engine = CrawlEngine(start_url=url, config=config, database=db, progress_callback=progress_callback)
-        audit_id = await engine.crawl()
+        use_go_crawler = (getattr(config, 'CRAWLER_ENGINE', 'go') == 'go') and (GoCrawlerClient is not None)
+        go_crawled = False
+        audit_id = str(uuid.uuid4())[:8]
+
+        if use_go_crawler:
+            target_str = getattr(config, 'GO_CRAWLER_GRPC_TARGET', '127.0.0.1:50051')
+            h, p = target_str.split(":") if ":" in target_str else ("127.0.0.1", 50051)
+            go_client = GoCrawlerClient(host=h, port=int(p))
+            if await go_client.ensure_service_running(timeout_sec=5.0):
+                print(f"[Go-Crawler] Using ultra-fast Go Crawl Engine [{target_str}]...")
+                await db.create_audit(audit_id=audit_id, domain=urlparse(url).netloc, url=url)
+                await db.update_audit(audit_id, status='crawling')
+
+                concurrency_val = getattr(config, 'CRAWL_CONCURRENCY', 30) or 30
+                cfg_dict = {
+                    "audit_id": audit_id,
+                    "start_url": url,
+                    "max_pages": getattr(config, 'MAX_PAGES', 0),
+                    "concurrency": concurrency_val,
+                    "max_per_host": getattr(config, 'MAX_PER_HOST', concurrency_val),
+                    "host_delay_ms": int(getattr(config, 'CRAWL_DELAY', 0.0) * 1000),
+                    "user_agent": getattr(config, 'USER_AGENT', ''),
+                    "crawl_mode": getattr(config, 'CRAWL_MODE', 'spider'),
+                    "urls_list": getattr(config, 'URLS_LIST', []),
+                    "include_regex": getattr(config, 'INCLUDE_REGEX', []),
+                    "exclude_regex": getattr(config, 'EXCLUDE_REGEX', []),
+                    "max_crawl_depth": getattr(config, 'MAX_CRAWL_DEPTH', 0) or 0,
+                    "crawl_subdomains": getattr(config, 'CRAWL_SUBDOMAINS', False),
+                    "allowed_domains": getattr(config, 'ALLOWED_DOMAINS', []),
+                    "block_urls": getattr(config, 'BLOCK_URLS', []),
+                    "postgres_dsn": getattr(config, 'POSTGRES_DSN', ''),
+                    "sqlite_path": os.path.abspath(config.DB_PATH),
+                    "respect_robots_crawl_delay": getattr(config, 'RESPECT_ROBOTS_TXT', False) and getattr(config, 'RESPECT_CRAWL_DELAY', False),
+                }
+
+                try:
+                    async for event in go_client.start_crawl(cfg_dict):
+                        if event.type == "progress" and event.progress:
+                            prog = event.progress
+                            sys.stdout.write(f"\r[{prog.pages_crawled}/{prog.pages_crawled + prog.queue_size}] Speed: {prog.pages_per_sec:.1f} p/s | Crawling: {prog.current_url[:45]:<45}")
+                            sys.stdout.flush()
+                    pages_cnt = await db.get_pages_count(audit_id)
+                    await db.update_audit(audit_id, total_pages=pages_cnt)
+                    go_crawled = True
+                except Exception as ex_go:
+                    print(f"\nGo crawler stream issue: {ex_go}. Falling back to Python crawler.")
+                finally:
+                    await go_client.close()
+
+        if not go_crawled:
+            engine = CrawlEngine(start_url=url, config=config, database=db, progress_callback=progress_callback)
+            audit_id = await engine.crawl()
         
         print("\n\nCrawling completed. Running analyzers...")
         

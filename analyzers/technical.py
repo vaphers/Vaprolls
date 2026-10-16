@@ -75,25 +75,89 @@ class TechnicalAnalyzer:
     async def check_redirects(self, page: Dict[str, Any]):
         url = page.get('url')
         page_id = page.get('id')
+        status = page.get('status_code')
         
-        chain_raw = page.get('redirect_chain')
-        if not chain_raw:
+        # Check for explicit redirect loop error or status 310
+        if status == 310 or page.get('redirect_type') == 'Redirect Loop / Too Many Redirects':
+            await self._add_issue(page_id, url, 'critical', 'redirect_loop_exceeded', "Too many redirects / infinite redirect loop detected", "Fix server redirect configuration to break the loop.", url)
             return
-            
-        try:
-            chain = json.loads(chain_raw) if isinstance(chain_raw, str) else chain_raw
-        except json.JSONDecodeError:
-            chain = []
 
-        if isinstance(chain, list) and len(chain) > 1:
-            if len(chain) > 3:
-                await self._add_issue(page_id, url, 'critical', 'long_redirect_chain', "Redirect chain has more than 3 hops", "Update links to point directly to the final destination.", chain)
-            else:
-                await self._add_issue(page_id, url, 'warning', 'redirect_chain', "Redirect chain detected", "Update links to point directly to the final destination.", chain)
+        chain_raw = page.get('redirect_chain')
+        details_raw = page.get('redirect_chain_details')
+        
+        chain = []
+        if chain_raw:
+            try:
+                chain = json.loads(chain_raw) if isinstance(chain_raw, str) else chain_raw
+            except Exception:
+                chain = []
                 
-            # Check for loops (simplified: if url appears more than once in the chain)
-            if len(set(chain)) < len(chain):
-                await self._add_issue(page_id, url, 'critical', 'redirect_loop', "Redirect loop detected", "Fix the server configuration causing an infinite redirect loop.", chain)
+        chain_details = []
+        if details_raw:
+            try:
+                chain_details = json.loads(details_raw) if isinstance(details_raw, str) else details_raw
+            except Exception:
+                chain_details = []
+
+        if not chain and chain_details:
+            chain = [h.get('url') for h in chain_details if isinstance(h, dict) and h.get('url')]
+
+        redirect_url = page.get('redirect_url')
+        final_dest = chain[-1] if chain else (redirect_url or url)
+
+        # 1. Self redirect check
+        if redirect_url and url and redirect_url.rstrip('/').lower() == url.rstrip('/').lower():
+            await self._add_issue(page_id, url, 'critical', 'self_redirect', f"Page redirects directly to itself: {redirect_url}", "Remove the self-referencing redirect rule.", redirect_url)
+
+        if isinstance(chain, list) and len(chain) > 0:
+            # 2. Check for loops with normalized URLs
+            norm_chain = [u.rstrip('/').lower() for u in chain if isinstance(u, str)]
+            if len(set(norm_chain)) < len(norm_chain):
+                await self._add_issue(page_id, url, 'critical', 'redirect_loop', "Redirect loop detected in hop chain", "Fix the server configuration causing an infinite redirect loop.", chain)
+
+            # 3. Chain length checks
+            if len(chain) > 3:
+                await self._add_issue(page_id, url, 'critical', 'long_redirect_chain', f"Redirect chain has {len(chain)} hops (> 3 hops)", "Update links to point directly to the final destination.", chain)
+            elif len(chain) > 1:
+                await self._add_issue(page_id, url, 'warning', 'redirect_chain', f"Redirect chain detected ({len(chain)} hops)", "Update links to point directly to the final destination.", chain)
+
+            # 4. Cross-domain check
+            try:
+                source_domain = urllib.parse.urlparse(url).netloc.lower()
+                dest_domain = urllib.parse.urlparse(final_dest).netloc.lower()
+                if source_domain and dest_domain and source_domain != dest_domain:
+                    await self._add_issue(page_id, url, 'info', 'redirect_domain_change', f"Redirect changes domain: {source_domain} → {dest_domain}", "Ensure cross-domain redirect is intentional and passing authority correctly.", final_dest)
+            except Exception:
+                pass
+
+            # 5. Protocol downgrade check (HTTPS -> HTTP)
+            for i in range(len(chain) - 1):
+                try:
+                    p1 = urllib.parse.urlparse(chain[i]).scheme.lower()
+                    p2 = urllib.parse.urlparse(chain[i+1]).scheme.lower()
+                    if p1 == 'https' and p2 == 'http':
+                        await self._add_issue(page_id, url, 'warning', 'redirect_protocol_downgrade', f"Insecure redirect downgrade from HTTPS to HTTP: {chain[i]} → {chain[i+1]}", "Ensure redirect targets maintain HTTPS security.", chain)
+                        break
+                except Exception:
+                    pass
+
+        # 6. Check mixed redirect types in chain (e.g., 302 before 301)
+        if isinstance(chain_details, list) and len(chain_details) > 1:
+            has_seen_temp = False
+            has_mixed = False
+            for hop in chain_details:
+                h_code = hop.get('status')
+                if h_code in (302, 303, 307):
+                    has_seen_temp = True
+                elif h_code in (301, 308) and has_seen_temp:
+                    has_mixed = True
+                    break
+            if has_mixed:
+                await self._add_issue(page_id, url, 'warning', 'mixed_redirect_chain', "Temporary redirect (302/307) precedes permanent redirect (301/308) in chain", "Chain temporary redirect before permanent redirect causes loss of PageRank/link equity.", chain_details)
+
+        # 7. Check if chain ends in an error (4xx/5xx)
+        if status and status >= 400 and (chain or redirect_url):
+            await self._add_issue(page_id, url, 'critical', 'redirect_broken_destination', f"Redirect destination returns HTTP error ({status})", "Fix broken redirect destination to avoid loss of traffic and crawl budget.", status)
 
     async def check_response_time(self, page: Dict[str, Any]):
         ttfb = page.get('response_time')

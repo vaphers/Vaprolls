@@ -33,6 +33,19 @@ def main():
         try:
             import uvicorn
             import importlib.util
+            import atexit
+            import signal
+
+            try:
+                from web.app import cleanup_all_crawl_data
+                atexit.register(cleanup_all_crawl_data)
+                def _sig_handler(sig, frame):
+                    cleanup_all_crawl_data()
+                    sys.exit(0)
+                signal.signal(signal.SIGINT, _sig_handler)
+                signal.signal(signal.SIGTERM, _sig_handler)
+            except Exception:
+                pass
             
             # Fall back to CLI if the web dashboard doesn't exist yet
             if not importlib.util.find_spec("web.app"):

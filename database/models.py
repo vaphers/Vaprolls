@@ -135,6 +135,13 @@ CREATE TABLE IF NOT EXISTS pages (
     microdata_json TEXT,
     rdfa_json TEXT,
     plaintext_emails_json TEXT,
+    click_depth INTEGER DEFAULT 0,
+    is_orphan BOOLEAN DEFAULT 0,
+    custom_extractions_json TEXT,
+    custom_search_json TEXT,
+    hreflang_issues_json TEXT,
+    schema_validation_json TEXT,
+    redirect_chain_json TEXT,
     created_at TIMESTAMP,
     FOREIGN KEY(audit_id) REFERENCES audits(id),
     UNIQUE(audit_id, url)

@@ -7,12 +7,13 @@
 <div class="h-full w-full flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-[#FFF7D6] text-black font-sans">
 
     <!-- Category Groups Filter Bar (6 Clean Categorized Pills) -->
+    <!-- Category Groups Filter Bar (6 Clean Categorized Pills) -->
     <div class="bg-[#FFE08A] border-b border-[#E2D5A0] px-3 py-1 flex items-center justify-between shrink-0 overflow-x-auto text-xs select-none">
         <div class="flex items-center gap-1.5" id="group-pills">
             <span class="text-[11px] font-bold text-black uppercase mr-1">Group:</span>
             <button type="button" onclick="selectTabGroup('all')" data-group="all"
                 class="group-pill px-2.5 py-0.5 text-xs font-bold cursor-pointer bg-[#FFE08A] border border-[#C8B670] text-black">
-                All (22)
+                All (12)
             </button>
             <button type="button" onclick="selectTabGroup('overview')" data-group="overview"
                 class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
@@ -20,19 +21,15 @@
             </button>
             <button type="button" onclick="selectTabGroup('onpage')" data-group="onpage"
                 class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
-                On-Page SEO (6)
+                On-Page SEO (4)
             </button>
             <button type="button" onclick="selectTabGroup('technical')" data-group="technical"
                 class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
-                Technical SEO (6)
+                Technical SEO (2)
             </button>
             <button type="button" onclick="selectTabGroup('links')" data-group="links"
                 class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
-                Links &amp; Equity (3)
-            </button>
-            <button type="button" onclick="selectTabGroup('auditing')" data-group="auditing"
-                class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
-                Auditing &amp; Health (2)
+                Links &amp; Equity (1)
             </button>
             <button type="button" onclick="selectTabGroup('assets')" data-group="assets"
                 class="group-pill px-2.5 py-0.5 text-xs font-normal cursor-pointer bg-white border border-[#C8B670] text-black hover:bg-[#FFE08A]">
@@ -41,38 +38,32 @@
         </div>
     </div>
 
-    <!-- Top Category Tabs: 22 Primary Tabs (Docked Edge-to-Edge, Horizontal Scroll) -->
+    <!-- Top Category Tabs: Rationalized 12 High-Value Tabs (Docked Edge-to-Edge, Horizontal Scroll) -->
     <div class="bg-white border-b border-[#E2D5A0] px-2 py-0 flex items-center justify-between shrink-0 overflow-x-auto text-xs select-none" id="category-tabs-bar">
         <div class="flex items-center space-x-0.5 min-w-max" id="category-tabs">
             {% set tabs = [
-                ('all', 'All URLs', 'overview'),
-                ('internal', 'Internal', 'overview'),
-                ('external', 'External', 'overview'),
-                ('response_codes', 'Response Codes', 'overview'),
-                ('page_titles', 'Page Titles', 'onpage'),
-                ('meta_description', 'Meta Description', 'onpage'),
-                ('meta_keywords', 'Meta Keywords', 'onpage'),
-                ('h1', 'H1', 'onpage'),
-                ('h2', 'H2', 'onpage'),
-                ('content', 'Content', 'onpage'),
-                ('images', 'Images', 'assets'),
-                ('canonicals', 'Canonicals', 'technical'),
-                ('pagination', 'Pagination', 'technical'),
-                ('hreflang', 'Hreflang', 'technical'),
-                ('javascript', 'JavaScript', 'technical'),
-                ('links', 'Links', 'links'),
-                ('structured_data', 'Structured Data', 'links'),
-                ('sitemaps', 'Sitemaps', 'technical'),
-                ('pagespeed', 'PageSpeed', 'links'),
-                ('mobile', 'Mobile', 'technical'),
-                ('accessibility', 'Accessibility', 'auditing'),
-                ('amp', 'AMP', 'auditing')
+                ('all', 'All URLs', 'overview', true),
+                ('internal', 'Internal', 'overview', true),
+                ('external', 'External', 'overview', true),
+                ('response_codes', 'Response Codes', 'overview', true),
+                ('page_titles', 'Page Titles', 'onpage', true),
+                ('meta_description', 'Meta Description', 'onpage', true),
+                ('h1', 'H1', 'onpage', true),
+                ('content', 'Content', 'onpage', true),
+                ('images', 'Images', 'assets', true),
+                ('canonicals', 'Canonicals', 'technical', true),
+                ('links', 'Links', 'links', true),
+                ('hreflang', 'Hreflang', 'technical', has_hreflang),
+                ('structured_data', 'Structured Data', 'links', has_structured_data),
+                ('accessibility', 'Accessibility', 'technical', has_accessibility)
             ] %}
-            {% for t_key, t_label, t_group in tabs %}
+            {% for t_key, t_label, t_group, is_visible in tabs %}
+            {% if is_visible %}
             <button type="button" onclick="switchTab('{{ t_key }}')" data-tab="{{ t_key }}" data-group="{{ t_group }}"
                class="category-tab-btn px-2.5 py-1.5 transition-colors border-b-2 text-xs cursor-pointer whitespace-nowrap {% if (current_tab or 'all') == t_key %}border-b-[#7FA8D6] text-black font-bold bg-[#FFE08A]{% else %}border-b-transparent text-black font-normal hover:bg-[#FFE08A]{% endif %}">
                 {{ t_label }}
             </button>
+            {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -365,6 +356,7 @@
                 <div class="bg-[#FFF7D6] border-b border-[#C8B670] flex items-center overflow-x-auto shrink-0 text-sm select-none">
                     {% set insp_tabs = [
                         ('details', 'URL Details'),
+                        ('redirects', 'Redirect Chain'),
                         ('inlinks', 'Inlinks'),
                         ('outlinks', 'Outlinks'),
                         ('images', 'Image Details'),
@@ -387,7 +379,7 @@
                     {% endfor %}
                 </div>
 
-                <!-- Inspector Panels Body (All 14 Tabs) -->
+                <!-- Inspector Panels Body (All 15 Tabs) -->
                 <div class="flex-1 overflow-auto p-3 text-sm min-h-0 bg-white text-black" id="inspector-panels">
                     
                     <!-- 1. URL Details Panel -->
@@ -438,6 +430,36 @@
                             <div class="pt-1.5 border-t border-[#E2D5A0]">
                                 <span class="text-xs text-black uppercase font-bold block">H1 Heading:</span>
                                 <div id="det-h1" class="text-black font-medium select-all mt-0.5 max-h-14 overflow-y-auto break-all text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1B. Redirect Chain Panel -->
+                    <div id="insp-panel-redirects" class="insp-panel hidden space-y-3">
+                        <div class="border border-[#C8B670] p-3 bg-white space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs uppercase font-bold text-black tracking-wider">Visual Hop-by-Hop Redirect Flow</span>
+                                <span id="redirect-chain-summary-badge" class="px-2 py-0.5 rounded border text-[11px] font-bold font-mono"></span>
+                            </div>
+                            <div id="redirects-chain-flow" class="p-3 bg-[#FFF7D6] border border-[#E2D5A0] rounded min-h-[100px] flex flex-wrap items-center gap-3 overflow-x-auto">
+                                <div class="text-xs text-slate-500 italic py-4 text-center w-full">Select a redirected URL from the table above to view its chain diagram.</div>
+                            </div>
+                            <div id="redirect-chain-table-wrap" class="overflow-x-auto border border-[#E2D5A0]">
+                                <table class="w-full text-left text-xs border-collapse font-mono">
+                                    <thead class="bg-[#FFE08A] text-black uppercase font-bold border-b border-[#C8B670]">
+                                        <tr>
+                                            <th class="p-2 w-12 text-center">Hop</th>
+                                            <th class="p-2 w-20 text-center">Status</th>
+                                            <th class="p-2">URL</th>
+                                            <th class="p-2 w-28">Type</th>
+                                            <th class="p-2 w-32">Domain</th>
+                                            <th class="p-2 w-24 text-center">Security</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="redirect-chain-tbody" class="divide-y divide-[#EDE9E1] text-black bg-white">
+                                        <tr><td colspan="6" class="p-3 text-center text-slate-400 italic font-sans">No redirect chain recorded.</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1138,14 +1160,15 @@
 // ==========================================
 // CLIENT CONTEXT & TAB SCHEMA REGISTRY
 // ==========================================
-const auditId = "{{ audit.id if audit else '' }}";
+let auditId = "{{ audit.id if audit else '' }}";
+window.auditId = auditId;
 let currentActiveTab = "{{ current_tab or 'all' }}";
 let currentSortBy = "{{ current_sort or 'status' }}";
 let currentSortDir = "asc";
 let activePageId = null;
 window.currentTabRows = [];
 
-// 22 Tab Schemas with Keys, Labels, Alignments & Default Pixel Widths
+// Rationalized High-Value Tab Schemas with Keys, Labels, Alignments & Default Pixel Widths
 const TAB_SCHEMAS = {
     all: {
         label: 'All URLs',
@@ -1181,24 +1204,13 @@ const TAB_SCHEMAS = {
             { key: 'canonical_url', label: 'Canonical Link Element', defaultWidth: 240 },
             { key: 'internal_pagerank', label: 'Internal PageRank', defaultWidth: 120, align: 'text-right' },
             { key: 'size_bytes', label: 'Size', defaultWidth: 85, align: 'text-right' },
-            { key: 'transferred_bytes', label: 'Transferred', defaultWidth: 95, align: 'text-right' },
-            { key: 'total_transferred_bytes', label: 'Total Transferred', defaultWidth: 110, align: 'text-right' },
             { key: 'word_count', label: 'Word Count', defaultWidth: 90, align: 'text-right' },
-            { key: 'sentence_count', label: 'Sentence Count', defaultWidth: 100, align: 'text-right' },
-            { key: 'avg_words_per_sentence', label: 'Avg Words/Sentence', defaultWidth: 120, align: 'text-right' },
-            { key: 'text_ratio', label: 'Text Ratio', defaultWidth: 95, align: 'text-right' },
             { key: 'crawl_depth', label: 'Crawl Depth', defaultWidth: 95, align: 'text-right' },
-            { key: 'folder_depth', label: 'Folder Depth', defaultWidth: 95, align: 'text-right' },
             { key: 'inlinks_count', label: 'Inlinks', defaultWidth: 80, align: 'text-right' },
-            { key: 'unique_inlinks', label: 'Unique Inlinks', defaultWidth: 95, align: 'text-right' },
             { key: 'outlinks_count', label: 'Outlinks', defaultWidth: 80, align: 'text-right' },
-            { key: 'unique_outlinks', label: 'Unique Outlinks', defaultWidth: 95, align: 'text-right' },
             { key: 'response_time', label: 'Response Time', defaultWidth: 100, align: 'text-right' },
             { key: 'redirect_url', label: 'Redirect URL', defaultWidth: 240 },
-            { key: 'language', label: 'Language', defaultWidth: 85 },
-            { key: 'http_version', label: 'HTTP Version', defaultWidth: 95 },
-            { key: 'mobile_alt_link', label: 'Mobile Alt Link', defaultWidth: 220 },
-            { key: 'crawl_timestamp', label: 'Crawl Timestamp', defaultWidth: 160 }
+            { key: 'language', label: 'Language', defaultWidth: 85 }
         ]
     },
     external: {
@@ -1217,16 +1229,18 @@ const TAB_SCHEMAS = {
         label: 'Response Codes',
         columns: [
             { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
+            { key: 'url', label: 'Address', defaultWidth: 550 },
             { key: 'content_type', label: 'Content Type', defaultWidth: 140 },
             { key: 'status_code', label: 'Status Code', defaultWidth: 95, align: 'text-center' },
             { key: 'status', label: 'Status', defaultWidth: 110 },
+            { key: 'redirect_chain_length', label: 'Hops', defaultWidth: 70, align: 'text-center' },
+            { key: 'redirect_type', label: 'Redirect Type', defaultWidth: 120 },
+            { key: 'redirect_url', label: 'Redirect Destination', defaultWidth: 320 },
+            { key: 'final_destination', label: 'Final Destination', defaultWidth: 320 },
             { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 },
             { key: 'inlinks_count', label: 'Inlinks', defaultWidth: 85, align: 'text-right' },
-            { key: 'response_time', label: 'Response Time', defaultWidth: 100, align: 'text-right' },
-            { key: 'redirect_url', label: 'Redirect URL', defaultWidth: 280 },
-            { key: 'redirect_type', label: 'Redirect Type', defaultWidth: 110 }
+            { key: 'response_time', label: 'Response Time', defaultWidth: 100, align: 'text-right' }
         ]
     },
     page_titles: {
@@ -1254,18 +1268,6 @@ const TAB_SCHEMAS = {
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
         ]
     },
-    meta_keywords: {
-        label: 'Meta Keywords',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'occurrences', label: 'Occurrences', defaultWidth: 95, align: 'text-right' },
-            { key: 'meta_keywords', label: 'Meta Keywords 1', defaultWidth: 320 },
-            { key: 'meta_keywords_length', label: 'Meta Keywords 1 Length', defaultWidth: 145, align: 'text-right' },
-            { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
-            { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
-        ]
-    },
     h1: {
         label: 'H1',
         columns: [
@@ -1274,18 +1276,6 @@ const TAB_SCHEMAS = {
             { key: 'occurrences', label: 'Occurrences', defaultWidth: 95, align: 'text-right' },
             { key: 'h1_1', label: 'H1-1', defaultWidth: 300 },
             { key: 'h1_1_length', label: 'H1-1 Length', defaultWidth: 100, align: 'text-right' },
-            { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
-            { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
-        ]
-    },
-    h2: {
-        label: 'H2',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'occurrences', label: 'Occurrences', defaultWidth: 95, align: 'text-right' },
-            { key: 'h2_1', label: 'H2-1', defaultWidth: 300 },
-            { key: 'h2_1_length', label: 'H2-1 Length', defaultWidth: 100, align: 'text-right' },
             { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
         ]
@@ -1332,17 +1322,22 @@ const TAB_SCHEMAS = {
             { key: 'robots_meta', label: 'Meta Robots 1', defaultWidth: 200 }
         ]
     },
-    pagination: {
-        label: 'Pagination',
+    links: {
+        label: 'Links',
         columns: [
             { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
             { key: 'url', label: 'Address', defaultWidth: 650 },
             { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 },
-            { key: 'canonical_url', label: 'Canonical Link Element 1', defaultWidth: 260 },
-            { key: 'http_canonical', label: 'HTTP Canonical', defaultWidth: 220 },
-            { key: 'robots_meta', label: 'Meta Robots 1', defaultWidth: 160 },
-            { key: 'x_robots_tag', label: 'X-Robots-Tag 1', defaultWidth: 160 }
+            { key: 'crawl_depth', label: 'Crawl Depth', defaultWidth: 95, align: 'text-right' },
+            { key: 'link_score', label: 'Link Score', defaultWidth: 95, align: 'text-right' },
+            { key: 'inlinks_count', label: 'Inlinks', defaultWidth: 80, align: 'text-right' },
+            { key: 'unique_inlinks', label: 'Unique Inlinks', defaultWidth: 95, align: 'text-right' },
+            { key: 'inlinks_pct', label: '% of Total', defaultWidth: 85, align: 'text-right' },
+            { key: 'outlinks_count', label: 'Outlinks', defaultWidth: 80, align: 'text-right' },
+            { key: 'unique_outlinks', label: 'Unique Outlinks', defaultWidth: 95, align: 'text-right' },
+            { key: 'external_outlinks', label: 'Ext Outlinks', defaultWidth: 95, align: 'text-right' },
+            { key: 'unique_external_outlinks', label: 'Unique Ext Outlinks', defaultWidth: 120, align: 'text-right' }
         ]
     },
     hreflang: {
@@ -1358,63 +1353,6 @@ const TAB_SCHEMAS = {
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 },
             { key: 'sitemap_hreflang_1', label: 'Sitemap Hreflang 1', defaultWidth: 120 },
             { key: 'sitemap_hreflang_1_url', label: 'Sitemap Hreflang 1 URL', defaultWidth: 240 }
-        ]
-    },
-    javascript: {
-        label: 'JavaScript',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'status_code', label: 'Status Code', defaultWidth: 95, align: 'text-center' },
-            { key: 'status', label: 'Status', defaultWidth: 100 },
-            { key: 'html_word_count', label: 'HTML Word Count', defaultWidth: 120, align: 'text-right' },
-            { key: 'rendered_word_count', label: 'Rendered Word Count', defaultWidth: 135, align: 'text-right' },
-            { key: 'word_count_change', label: 'Word Count Change', defaultWidth: 125, align: 'text-right' },
-            { key: 'js_word_count_pct', label: 'JS Word Count %', defaultWidth: 120, align: 'text-right' },
-            { key: 'html_title', label: 'HTML Title', defaultWidth: 220 },
-            { key: 'rendered_title', label: 'Rendered Title', defaultWidth: 220 },
-            { key: 'html_h1', label: 'HTML H1', defaultWidth: 200 },
-            { key: 'rendered_h1', label: 'Rendered H1', defaultWidth: 200 },
-            { key: 'html_meta_description', label: 'HTML Meta Desc', defaultWidth: 220 },
-            { key: 'rendered_meta_description', label: 'Rendered Meta Desc', defaultWidth: 220 },
-            { key: 'html_canonical', label: 'HTML Canonical', defaultWidth: 220 },
-            { key: 'rendered_canonical', label: 'Rendered Canonical', defaultWidth: 220 },
-            { key: 'unique_inlinks', label: 'Unique Inlinks', defaultWidth: 100, align: 'text-right' },
-            { key: 'unique_js_inlinks', label: 'Unique JS Inlinks', defaultWidth: 115, align: 'text-right' },
-            { key: 'unique_outlinks', label: 'Unique Outlinks', defaultWidth: 100, align: 'text-right' },
-            { key: 'unique_js_outlinks', label: 'Unique JS Outlinks', defaultWidth: 115, align: 'text-right' },
-            { key: 'unique_external_outlinks', label: 'Ext Outlinks', defaultWidth: 100, align: 'text-right' },
-            { key: 'unique_external_js_outlinks', label: 'Ext JS Outlinks', defaultWidth: 115, align: 'text-right' },
-            { key: 'html_meta_robots', label: 'HTML Meta Robots', defaultWidth: 130 },
-            { key: 'rendered_meta_robots', label: 'Rendered Meta Robots', defaultWidth: 145 },
-            { key: 'pretty_url', label: 'Pretty URL', defaultWidth: 220 },
-            { key: 'ugly_url', label: 'Ugly URL', defaultWidth: 220 },
-            { key: 'js_errors', label: 'JS Error', defaultWidth: 85, align: 'text-right' },
-            { key: 'js_warnings', label: 'JS Warning', defaultWidth: 90, align: 'text-right' },
-            { key: 'js_info', label: 'JS Info', defaultWidth: 85, align: 'text-right' },
-            { key: 'js_debug', label: 'JS Debug', defaultWidth: 85, align: 'text-right' },
-            { key: 'js_issues', label: 'JS Issue', defaultWidth: 85, align: 'text-right' }
-        ]
-    },
-    links: {
-        label: 'Links',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
-            { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 },
-            { key: 'crawl_depth', label: 'Crawl Depth', defaultWidth: 95, align: 'text-right' },
-            { key: 'link_score', label: 'Link Score', defaultWidth: 95, align: 'text-right' },
-            { key: 'inlinks_count', label: 'Inlinks', defaultWidth: 80, align: 'text-right' },
-            { key: 'unique_inlinks', label: 'Unique Inlinks', defaultWidth: 95, align: 'text-right' },
-            { key: 'unique_js_inlinks', label: 'Unique JS Inlinks', defaultWidth: 115, align: 'text-right' },
-            { key: 'inlinks_pct', label: '% of Total', defaultWidth: 85, align: 'text-right' },
-            { key: 'outlinks_count', label: 'Outlinks', defaultWidth: 80, align: 'text-right' },
-            { key: 'unique_outlinks', label: 'Unique Outlinks', defaultWidth: 95, align: 'text-right' },
-            { key: 'unique_js_outlinks', label: 'Unique JS Outlinks', defaultWidth: 115, align: 'text-right' },
-            { key: 'external_outlinks', label: 'Ext Outlinks', defaultWidth: 95, align: 'text-right' },
-            { key: 'unique_external_outlinks', label: 'Unique Ext Outlinks', defaultWidth: 120, align: 'text-right' },
-            { key: 'unique_external_js_outlinks', label: 'Unique Ext JS Outlinks', defaultWidth: 135, align: 'text-right' }
         ]
     },
     structured_data: {
@@ -1435,35 +1373,6 @@ const TAB_SCHEMAS = {
             { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
         ]
     },
-    sitemaps: {
-        label: 'Sitemaps',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'content_type', label: 'Content Type', defaultWidth: 140 },
-            { key: 'status_code', label: 'Status Code', defaultWidth: 95, align: 'text-center' },
-            { key: 'status', label: 'Status', defaultWidth: 110 },
-            { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
-            { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
-        ]
-    },
-    pagespeed: {
-        label: 'PageSpeed',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'psi_status', label: 'PSI Request Status', defaultWidth: 160 }
-        ]
-    },
-    mobile: {
-        label: 'Mobile',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'psi_status', label: 'PSI Request', defaultWidth: 150 },
-            { key: 'mobile_alt_link', label: 'Mobile Alternate Link', defaultWidth: 300 }
-        ]
-    },
     accessibility: {
         label: 'Accessibility',
         columns: [
@@ -1480,21 +1389,7 @@ const TAB_SCHEMAS = {
             { key: 'accessibility_wcag_2_0_aa', label: 'WCAG 2.0 AA', defaultWidth: 100, align: 'text-right' },
             { key: 'accessibility_wcag_2_0_aaa', label: 'WCAG 2.0 AAA', defaultWidth: 105, align: 'text-right' },
             { key: 'accessibility_wcag_2_1_aa', label: 'WCAG 2.1 AA', defaultWidth: 100, align: 'text-right' },
-            { key: 'accessibility_wcag_2_2_aa', label: 'WCAG 2.2 AA', defaultWidth: 100, align: 'text-right' },
-            { key: 'psi_status', label: 'PSI Request Status', defaultWidth: 150 }
-        ]
-    },
-    amp: {
-        label: 'AMP',
-        columns: [
-            { key: 'row', label: '#', defaultWidth: 55, align: 'text-center' },
-            { key: 'url', label: 'Address', defaultWidth: 650 },
-            { key: 'content_type', label: 'Content Type', defaultWidth: 130 },
-            { key: 'status_code', label: 'Status Code', defaultWidth: 95, align: 'text-center' },
-            { key: 'status', label: 'Status', defaultWidth: 100 },
-            { key: 'amp_html_link', label: 'AMP HTML Link', defaultWidth: 300 },
-            { key: 'indexability', label: 'Indexability', defaultWidth: 120 },
-            { key: 'indexability_status', label: 'Indexability Status', defaultWidth: 150 }
+            { key: 'accessibility_wcag_2_2_aa', label: 'WCAG 2.2 AA', defaultWidth: 100, align: 'text-right' }
         ]
     }
 };
@@ -2498,6 +2393,15 @@ async function fetchInspectorData(pageId) {
         if (!res.ok) return;
         const data = await res.json();
         const pageUrl = (data.page && data.page.url) ? data.page.url : '';
+
+        // 0. Redirect Chain
+        const redirectsContainer = document.getElementById('redirects-chain-flow');
+        if (redirectsContainer) {
+            const chain = data.redirect_chain_details || [];
+            const rUrl = data.page ? data.page.redirect_url : '';
+            const rType = data.page ? data.page.redirect_type : '';
+            renderVisualRedirectChain(redirectsContainer, chain, rUrl, rType, pageUrl);
+        }
 
         // 1. Inlinks
         const inlinksTbody = document.getElementById('inlinks-table-body');
@@ -3741,6 +3645,332 @@ async function loadAllRightPanelData() {
     loadRightPanelData('response-times');
     loadRightPanelData('depth');
 }
+
+// =============================================
+// REDIRECT CHAIN VISUAL FLOWCHART RENDERER
+// =============================================
+function renderVisualRedirectChain(container, chain, redirectUrl, redirectType, sourceUrl) {
+    if (!container) return;
+    container.innerHTML = '';
+
+    let hops = [];
+    if (Array.isArray(chain) && chain.length > 0) {
+        hops = chain;
+    } else if (redirectUrl) {
+        hops = [
+            { url: sourceUrl || 'Source URL', status: 301, type: redirectType || '301 Redirect', protocol: 'HTTPS', domain: '' },
+            { url: redirectUrl, status: 200, type: '200 Final Destination', protocol: 'HTTPS', domain: '' }
+        ];
+    }
+
+    const sumBadge = document.getElementById('redirect-chain-summary-badge');
+    const tbody = document.getElementById('redirect-chain-tbody');
+    const rTabBadge = document.getElementById('insp-badge-count-redirects');
+
+    if (hops.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 italic py-4 text-center w-full">This URL is not part of a redirect chain (Direct 200 OK or non-redirecting status).</div>';
+        if (sumBadge) {
+            sumBadge.className = 'px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-500 text-[11px] font-mono';
+            sumBadge.textContent = 'No Redirects';
+        }
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400 italic font-sans">No redirect chain recorded.</td></tr>';
+        }
+        if (rTabBadge) rTabBadge.textContent = '';
+        return;
+    }
+
+    if (rTabBadge) rTabBadge.textContent = `(${hops.length} hops)`;
+
+    // Check edge cases: loops, downgrades, cross-domain
+    const seenUrls = new Set();
+    let hasLoop = false;
+    let hasDowngrade = false;
+    let hasCrossDomain = false;
+
+    hops.forEach((h, idx) => {
+        const u = h.url || '';
+        try {
+            const parsed = new URL(u);
+            h.protocol = parsed.protocol.replace(':', '').toUpperCase();
+            h.domain = parsed.hostname;
+        } catch(e) {
+            h.protocol = u.startsWith('https') ? 'HTTPS' : 'HTTP';
+            h.domain = '';
+        }
+
+        if (seenUrls.has(u.toLowerCase())) {
+            hasLoop = true;
+            h.isLoop = true;
+        }
+        seenUrls.add(u.toLowerCase());
+
+        if (idx > 0) {
+            const prev = hops[idx - 1];
+            if (prev.protocol === 'HTTPS' && h.protocol === 'HTTP') {
+                hasDowngrade = true;
+                h.isDowngrade = true;
+            }
+            if (prev.domain && h.domain && prev.domain !== h.domain) {
+                hasCrossDomain = true;
+                h.isCrossDomain = true;
+            }
+        }
+    });
+
+    if (sumBadge) {
+        if (hasLoop) {
+            sumBadge.className = 'px-2 py-0.5 rounded border border-rose-500 bg-rose-50 text-rose-800 text-[11px] font-bold font-mono';
+            sumBadge.textContent = `⚠ REDIRECT LOOP DETECTED (${hops.length} Hops)`;
+        } else if (hops.length > 3) {
+            sumBadge.className = 'px-2 py-0.5 rounded border border-amber-500 bg-amber-50 text-amber-800 text-[11px] font-bold font-mono';
+            sumBadge.textContent = `⚠ LONG CHAIN (${hops.length} Hops)`;
+        } else {
+            sumBadge.className = 'px-2 py-0.5 rounded border border-emerald-500 bg-emerald-50 text-emerald-800 text-[11px] font-bold font-mono';
+            sumBadge.textContent = `✓ ${hops.length} Hops`;
+        }
+    }
+
+    const flowWrap = document.createElement('div');
+    flowWrap.className = 'flex flex-wrap items-center gap-2.5 w-full';
+
+    hops.forEach((hop, idx) => {
+        const isLast = (idx === hops.length - 1);
+        const card = document.createElement('div');
+        const sc = parseInt(hop.status, 10) || 301;
+
+        let borderCls = "border-[#C8B670]";
+        let bgCls = "bg-white";
+        let statusBadge = "bg-amber-100 text-amber-900 border-amber-300";
+
+        if (sc === 200) {
+            statusBadge = "bg-emerald-100 text-emerald-900 border-emerald-300";
+            borderCls = "border-emerald-400";
+        } else if (sc >= 400 || hop.isLoop) {
+            statusBadge = "bg-rose-100 text-rose-900 border-rose-300";
+            borderCls = "border-rose-400";
+        }
+
+        card.className = `border ${borderCls} ${bgCls} p-2.5 rounded shadow-2xs min-w-[200px] max-w-[320px] flex-1 text-xs space-y-1 font-mono`;
+        card.innerHTML = `
+            <div class="flex items-center justify-between gap-1 pb-1 border-b border-[#EDE9E1]">
+                <span class="font-bold text-[10px] uppercase ${isLast ? 'text-emerald-700' : 'text-slate-600'}">
+                    ${isLast ? '★ Final Destination' : `Hop #${idx + 1}`}
+                </span>
+                <span class="px-1.5 py-0.2 rounded border text-[10px] font-bold ${statusBadge}">
+                    ${sc} ${escapeHtml(hop.type || '')}
+                </span>
+            </div>
+            <div class="truncate text-black font-semibold text-[11px] select-all" title="${escapeHtml(hop.url)}">
+                ${escapeHtml(hop.url)}
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                <span class="px-1 py-0.2 rounded ${hop.protocol === 'HTTPS' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700 font-bold'}">${hop.protocol}</span>
+                <span class="truncate max-w-[120px]" title="${escapeHtml(hop.domain)}">${escapeHtml(hop.domain || '')}</span>
+            </div>
+            ${hop.isLoop ? '<div class="text-[10px] font-bold text-rose-700 bg-rose-50 p-1 rounded border border-rose-200">⚠ Loop: Cycles back to this URL</div>' : ''}
+            ${hop.isDowngrade ? '<div class="text-[10px] font-bold text-rose-700 bg-rose-50 p-1 rounded border border-rose-200">⚠ Security Downgrade: HTTPS &rarr; HTTP</div>' : ''}
+            ${hop.isCrossDomain ? '<div class="text-[10px] font-bold text-amber-700 bg-amber-50 p-1 rounded border border-amber-200">ℹ Cross-Domain Hop</div>' : ''}
+        `;
+        flowWrap.appendChild(card);
+
+        if (!isLast) {
+            const arrow = document.createElement('div');
+            arrow.className = 'text-slate-400 font-bold text-base shrink-0 select-none px-1 flex flex-col items-center';
+            arrow.innerHTML = '<span>&rarr;</span>';
+            flowWrap.appendChild(arrow);
+        }
+    });
+
+    container.appendChild(flowWrap);
+
+    if (tbody) {
+        tbody.innerHTML = '';
+        hops.forEach((hop, idx) => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-[#FFE08A] bg-white';
+            tr.innerHTML = `
+                <td class="p-2 border-r border-[#E2D5A0] text-center font-bold">#${idx + 1}</td>
+                <td class="p-2 border-r border-[#E2D5A0] text-center font-bold">${hop.status}</td>
+                <td class="p-2 border-r border-[#E2D5A0] break-all select-all font-mono">${escapeHtml(hop.url)}</td>
+                <td class="p-2 border-r border-[#E2D5A0]">${escapeHtml(hop.type || '')}</td>
+                <td class="p-2 border-r border-[#E2D5A0] truncate max-w-xs">${escapeHtml(hop.domain || '')}</td>
+                <td class="p-2 text-center ${hop.protocol === 'HTTPS' ? 'text-emerald-700' : 'text-rose-700 font-bold'}">${hop.protocol}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+}
+
+// =============================================
+// LIVE CRAWL ROW STREAMING (BATCHED VIA RAF)
+// =============================================
+let crawlRowCounter = 0;
+let crawlBannerEl = null;
+let pendingStreamRows = [];
+let streamRenderRaf = null;
+
+function flushStreamRows() {
+    streamRenderRaf = null;
+    if (pendingStreamRows.length === 0) return;
+
+    const chunk = pendingStreamRows;
+    pendingStreamRows = [];
+
+    if (!window.currentTabRows) window.currentTabRows = [];
+    if (!window.currentFilteredRows) window.currentFilteredRows = [];
+
+    for (let i = 0; i < chunk.length; i++) {
+        window.currentTabRows.push(chunk[i]);
+        window.currentFilteredRows.push(chunk[i]);
+    }
+
+    updateVisibleCount(window.currentFilteredRows.length, window.currentTabRows.length);
+
+    if (typeof renderVirtualTable === 'function') {
+        lastVirtualStart = -1;
+        lastVirtualEnd = -1;
+        renderVirtualTable(false);
+    }
+
+    const activeTabBtn = document.querySelector('.category-tab-btn.font-bold');
+    if (activeTabBtn) {
+        let badge = activeTabBtn.querySelector('.tab-count-badge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'tab-count-badge ml-1 text-xs opacity-70';
+            activeTabBtn.appendChild(badge);
+        }
+        badge.textContent = `(${window.currentFilteredRows.length})`;
+    }
+}
+
+window.resetWorkspaceForCrawl = function(newAuditId, targetUrl) {
+    auditId = newAuditId;
+    window.auditId = newAuditId;
+    crawlRowCounter = 0;
+    pendingStreamRows = [];
+    window.currentTabRows = [];
+    window.currentFilteredRows = [];
+    if (typeof lastVirtualStart !== 'undefined') lastVirtualStart = -1;
+    if (typeof lastVirtualEnd !== 'undefined') lastVirtualEnd = -1;
+    const schema = TAB_SCHEMAS[currentActiveTab] || TAB_SCHEMAS['all'];
+    activeColumns = schema.columns || [];
+    rebuildTableHeader(activeColumns, [], currentActiveTab);
+    initColumnResizers(currentActiveTab);
+    const tbody = document.getElementById('master-table-body');
+    if (tbody) tbody.innerHTML = '';
+    updateVisibleCount(0, 0);
+    const activeTabBtn = document.querySelector('.category-tab-btn.font-bold');
+    if (activeTabBtn) {
+        let badge = activeTabBtn.querySelector('.tab-count-badge');
+        if (badge) badge.textContent = '(0)';
+    }
+    if (crawlBannerEl) {
+        crawlBannerEl.remove();
+        crawlBannerEl = null;
+    }
+};
+
+window.onCrawlPageRows = function(rows) {
+    if (!rows || !rows.length) return;
+    for (let i = 0; i < rows.length; i++) {
+        window.onCrawlPageRow(rows[i]);
+    }
+};
+
+window.onCrawlPageRow = function(row) {
+    crawlRowCounter++;
+
+    // Update crawl banner
+    if (!crawlBannerEl) {
+        crawlBannerEl = document.createElement('div');
+        crawlBannerEl.id = 'crawl-live-banner';
+        crawlBannerEl.className = 'bg-[#FFE08A] border-b border-[#C8B670] px-4 py-1.5 text-sm font-medium text-black flex items-center gap-2';
+        crawlBannerEl.innerHTML = '<span class="animate-pulse">●</span> <span id="crawl-banner-text">Crawling in progress...</span>';
+        const tableContainer = document.getElementById('master-table-container') || document.querySelector('.master-table-wrap') || document.getElementById('table-virtual-viewport');
+        if (tableContainer && tableContainer.parentNode) tableContainer.parentNode.insertBefore(crawlBannerEl, tableContainer);
+    }
+    const bannerText = document.getElementById('crawl-banner-text');
+    if (bannerText) bannerText.textContent = `Crawling in progress — ${crawlRowCounter} URLs discovered...`;
+
+    // Build a row object compatible with our table schema
+    const rawUrl = row.url || '';
+    const canonical = row.canonical_url || '';
+    let canStatus = '';
+    if (canonical && canonical === rawUrl) canStatus = 'Self-Referential';
+    else if (canonical) canStatus = 'Canonicalised';
+
+    const tableRow = {
+        id: row.id || crawlRowCounter,
+        row: crawlRowCounter,
+        url: rawUrl,
+        status_code: row.status_code || 0,
+        content_type: row.content_type || '',
+        status: row.status || (row.status_code === 200 ? 'OK' : ''),
+        response_time: row.response_time || row.response_time_ms || 0,
+        response_time_ms: row.response_time_ms || row.response_time || 0,
+        size_bytes: row.size_bytes || 0,
+        crawl_depth: row.crawl_depth || 0,
+        title: row.title || '',
+        meta_description: row.meta_description || '',
+        h1: row.h1 || '',
+        word_count: row.word_count || 0,
+        canonical_url: canonical,
+        indexability: row.indexability || (row.status_code === 200 ? 'Indexable' : 'Non-Indexable'),
+        indexability_status: row.indexability_status || (row.status_code === 200 ? 'Indexable' : ''),
+        canonical_status: canStatus,
+        internal_pagerank: '',
+        length: row.size_bytes || 0,
+        redirect_url: row.redirect_url || '',
+        redirect_type: row.redirect_type || '',
+        redirect_chain_length: row.redirect_chain_length || 0,
+        final_destination: row.final_destination || ''
+    };
+
+    pendingStreamRows.push(tableRow);
+    if (!streamRenderRaf) {
+        streamRenderRaf = requestAnimationFrame(flushStreamRows);
+    }
+};
+
+window.onCrawlTier2Complete = function() {
+    if (streamRenderRaf) {
+        cancelAnimationFrame(streamRenderRaf);
+        flushStreamRows();
+    }
+    // Fast refresh of table data and core issues immediately after Tier 2 finishes
+    if (typeof switchTab === 'function' && currentActiveTab) {
+        switchTab(currentActiveTab);
+    }
+    if (typeof loadAllRightPanelData === 'function') {
+        loadAllRightPanelData();
+    }
+};
+
+window.onCrawlComplete = function() {
+    if (streamRenderRaf) {
+        cancelAnimationFrame(streamRenderRaf);
+        flushStreamRows();
+    }
+    // Remove crawl banner
+    if (crawlBannerEl) {
+        crawlBannerEl.remove();
+        crawlBannerEl = null;
+    }
+    crawlRowCounter = 0;
+
+    // Full refresh of table data with enriched analyzer data without full page reload
+    if (typeof switchTab === 'function' && currentActiveTab) {
+        switchTab(currentActiveTab);
+    }
+
+    // Refresh right panel data
+    rightPanelDataCache = {};
+    if (typeof loadAllRightPanelData === 'function') {
+        loadAllRightPanelData();
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initWorkspaceResizers();

@@ -21,8 +21,10 @@ class Database:
         self.conn = await aiosqlite.connect(self.db_path)
         self.conn.row_factory = aiosqlite.Row
         await self.conn.execute("PRAGMA journal_mode = WAL;")
+        await self.conn.execute('PRAGMA mmap_size = 268435456')  # 256MB mmap for faster reads
+        await self.conn.execute('PRAGMA cache_size = -64000')  # 64MB page cache  
+        await self.conn.execute('PRAGMA busy_timeout = 10000')  # 10s busy timeout for write contention
         await self.conn.execute("PRAGMA synchronous = NORMAL;")
-        await self.conn.execute("PRAGMA cache_size = -64000;")
         await self.conn.execute("PRAGMA temp_store = MEMORY;")
         await self.conn.executescript(SCHEMA_SQL)
         new_page_columns = [
@@ -99,6 +101,13 @@ class Database:
             ("x_robots_tag", "TEXT"),
             ("http_canonical", "TEXT"),
             ("amp_html_link", "TEXT"),
+            ("click_depth", "INTEGER DEFAULT 0"),
+            ("is_orphan", "BOOLEAN DEFAULT 0"),
+            ("custom_extractions_json", "TEXT"),
+            ("custom_search_json", "TEXT"),
+            ("hreflang_issues_json", "TEXT"),
+            ("schema_validation_json", "TEXT"),
+            ("redirect_chain_json", "TEXT"),
         ]
         for col, col_type in new_page_columns:
             try:
@@ -144,7 +153,13 @@ class Database:
             await self.conn.commit()
 
     async def create_audit(self, audit_id: str, domain: str, url: str, config: str = "{}") -> str:
-        query = "INSERT INTO audits (id, domain, url, status, config_json) VALUES (?, ?, ?, ?, ?)"
+        query = """
+            INSERT INTO audits (id, domain, url, status, config_json) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                domain = excluded.domain,
+                url = excluded.url,
+                config_json = CASE WHEN excluded.config_json IS NOT NULL AND excluded.config_json != '{}' THEN excluded.config_json ELSE audits.config_json END
+        """
         await self.conn.execute(query, (audit_id, domain, url, 'pending', config))
         await self.conn.commit()
         return audit_id
@@ -200,6 +215,20 @@ class Database:
     async def get_pages(self, audit_id: str) -> List[Dict[str, Any]]:
         async with self.conn.execute("SELECT * FROM pages WHERE audit_id = ?", (audit_id,)) as cursor:
             return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_pages_paginated(self, audit_id: str, page: int = 1, page_size: int = 1000, sort_by: str = 'id', sort_dir: str = 'asc') -> List[Dict[str, Any]]:
+        allowed_sorts = {'id', 'url', 'status_code', 'response_time_ms', 'crawl_depth', 'folder_depth', 'size_bytes', 'word_count', 'created_at'}
+        sort_col = sort_by if sort_by in allowed_sorts else 'id'
+        direction = 'DESC' if sort_dir.lower() == 'desc' else 'ASC'
+        offset = (page - 1) * page_size
+        query = f"SELECT * FROM pages WHERE audit_id = ? ORDER BY {sort_col} {direction} LIMIT ? OFFSET ?"
+        async with self.conn.execute(query, (audit_id, page_size, offset)) as cursor:
+            return [dict(row) for row in await cursor.fetchall()]
+
+    async def get_pages_count(self, audit_id: str) -> int:
+        async with self.conn.execute("SELECT COUNT(*) FROM pages WHERE audit_id = ?", (audit_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
     async def get_page_by_url(self, audit_id: str, url: str) -> Optional[Dict[str, Any]]:
         async with self.conn.execute("SELECT * FROM pages WHERE audit_id = ? AND url = ?", (audit_id, url)) as cursor:

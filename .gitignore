@@ -34,12 +34,15 @@ ENV/
 env.bak/
 venv.bak/
 
+# Executables and compiled binaries
+*.exe
+go-crawler/bin/
+
 # SQLite databases & runtime data
 *.db
 *.sqlite
 *.sqlite3
-data/*.db
-data/*.sqlite3
+data/
 
 # Reports output & screenshots
 reports_output/

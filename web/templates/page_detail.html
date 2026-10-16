@@ -632,6 +632,51 @@
             </span>
         </div>
 
+        {% if tech_data.redirect_chain and tech_data.redirect_chain|length > 0 %}
+        <!-- Redirect Chain Flowchart Card -->
+        <div class="bg-white rounded-lg border border-[#E5E0D8] p-6 shadow-xs space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#EDE9E1]">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        Visual Redirect Chain Flowchart
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Full hop-by-hop resolution path leading to the final destination.</p>
+                </div>
+                <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold {% if tech_data.redirect_chain|length > 3 %}bg-rose-50 text-rose-800 border border-rose-200{% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+                    {{ tech_data.redirect_chain|length }} Hops Recorded
+                </span>
+            </div>
+
+            <div class="p-4 bg-[#F8F6F1] rounded-lg border border-[#E5E0D8] flex flex-wrap items-center gap-3 overflow-x-auto font-mono text-xs">
+                {% for hop in tech_data.redirect_chain %}
+                    <div class="bg-white border {% if loop.last %}border-emerald-500 ring-2 ring-emerald-500/10{% else %}border-[#E5E0D8]{% endif %} p-3 rounded-md shadow-2xs min-w-[220px] max-w-sm flex-1 space-y-1.5">
+                        <div class="flex items-center justify-between text-[10px] pb-1 border-b border-slate-100">
+                            <span class="font-bold uppercase {% if loop.last %}text-emerald-700{% else %}text-slate-500{% endif %}">
+                                {% if loop.last %}★ Final Destination{% else %}Hop #{{ loop.index }}{% endif %}
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded font-bold {% if hop.status == 200 %}bg-emerald-100 text-emerald-800{% elif hop.status >= 300 and hop.status < 400 %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                HTTP {{ hop.status }}
+                            </span>
+                        </div>
+                        <div class="truncate text-slate-900 font-semibold text-xs select-all" title="{{ hop.url }}">
+                            {{ hop.url }}
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                            <span class="px-1 py-0.2 rounded {% if hop.protocol == 'HTTPS' %}bg-emerald-50 text-emerald-700{% else %}bg-rose-50 text-rose-700 font-bold{% endif %}">{{ hop.protocol or 'HTTP' }}</span>
+                            <span class="text-slate-400 truncate max-w-[140px]">{{ hop.type or 'Redirect' }}</span>
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="text-slate-400 font-bold text-lg select-none px-1">
+                        &rarr;
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             <!-- Directives, Canonical & Sitemaps Card -->

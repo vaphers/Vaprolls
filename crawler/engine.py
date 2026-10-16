@@ -246,12 +246,14 @@ class CrawlEngine:
                 if norm_u:
                     initial_seeds.append((norm_u, 0, None))
         elif self.crawl_mode == 'sitemap':
-            start_norm = self._normalize_url(self.start_url, self.base_url)
-            initial_seeds.append((start_norm, 0, None))
-            await self.robots_parser.fetch_and_parse(self.client)
-            sitemaps = self.robots_parser.get_sitemaps()
-            if not sitemaps:
-                sitemaps = [urljoin(self.base_url, "/sitemap.xml")]
+            custom_sitemaps = [u.strip() for u in getattr(self.config, 'URLS_LIST', []) if u.strip()]
+            if custom_sitemaps:
+                sitemaps = custom_sitemaps
+            else:
+                await self.robots_parser.fetch_and_parse(self.client)
+                sitemaps = self.robots_parser.get_sitemaps()
+                if not sitemaps:
+                    sitemaps = [urljoin(self.base_url, "/sitemap.xml")]
             sitemap_parser = SitemapParser(self.client)
             for sm in sitemaps:
                 await sitemap_parser.fetch_and_parse(sm)
@@ -323,6 +325,7 @@ class CrawlEngine:
         active_workers = 0
         crawl_errors = 0
         total_response_ms = 0.0
+        crawl_start_time = time.time()
         
         def _reached_page_limit():
             """Check if we've hit the page cap. max_pages=0 means unlimited."""
@@ -746,10 +749,19 @@ class CrawlEngine:
                         # Immediate flush for live data population
                         await self.database.flush()
 
-                        # WAL checkpoint every 500 pages to prevent unbounded WAL growth
-                        if pages_crawled % 500 == 0:
+                        # WAL checkpoint every 2000 pages to prevent unbounded WAL growth
+                        if pages_crawled % 2000 == 0:
                             try:
                                 await self.database.wal_checkpoint()
+                            except Exception:
+                                pass
+
+                        # Log memory usage at info level every 1000 pages (if psutil is available)
+                        if pages_crawled % 1000 == 0:
+                            try:
+                                import psutil
+                                mem_mb = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
+                                logger.info(f"Crawl progress: {pages_crawled} pages crawled, memory: {mem_mb}MB")
                             except Exception:
                                 pass
 
@@ -758,20 +770,56 @@ class CrawlEngine:
                             raw_total = max(pages_crawled, len(self.visited) + pending_count + self.frontier.qsize())
                             active_total = min(self.max_pages, raw_total) if self.max_pages > 0 else raw_total
                             avg_response = round(total_response_ms / max(1, pages_crawled), 1)
-                            import psutil, os
+                            
+                            # Auto-reduce concurrency if server is slow
+                            if avg_response > 5000 and self.semaphore._value > 3:
+                                # Reduce effective concurrency when avg response > 5s
+                                new_limit = max(3, self.semaphore._value - 2)
+                                self.semaphore = asyncio.Semaphore(new_limit)
+                                logger.warning(f"High avg response ({avg_response}ms), reducing concurrency to {new_limit}")
+                            
+                            mem_mb = 0
                             try:
+                                import psutil
                                 mem_mb = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
                             except Exception:
                                 mem_mb = 0
+                            # Build lightweight page row for live streaming
+                            resp_sc = page_resp.status_code if ('page_resp' in locals() and page_resp) else 0
+                            page_row_data = {
+                                'url': url,
+                                'status_code': resp_sc,
+                                'content_type': page_resp.content_type if ('page_resp' in locals() and page_resp) else '',
+                                'response_time': page_resp.response_time_ms if ('page_resp' in locals() and page_resp) else 0,
+                                'size_bytes': page_resp.size_bytes if ('page_resp' in locals() and page_resp) else 0,
+                                'crawl_depth': depth,
+                                'status': 'OK' if (200 <= resp_sc < 300) else ('Redirect' if (300 <= resp_sc < 400) else ('Connection Failed' if resp_sc == 0 else 'Error')),
+                                'redirect_url': (page_resp.final_url if (page_resp and page_resp.final_url != url) else '') if ('page_resp' in locals() and page_resp) else '',
+                                'redirect_type': getattr(page_resp, 'redirect_type', '') or '' if ('page_resp' in locals() and page_resp) else '',
+                                'indexability': 'Indexable' if (200 <= resp_sc < 300 and not ('parsed' in locals() and parsed and getattr(parsed, 'meta_robots') and 'noindex' in str(parsed.meta_robots).lower())) else 'Non-Indexable',
+                                'indexability_status': 'OK' if (200 <= resp_sc < 300) else ('Redirected' if (300 <= resp_sc < 400) else ('Connection Failed' if resp_sc == 0 else ('Client Error' if (400 <= resp_sc < 500) else 'Server Error'))),
+                            }
+                            # Add parsed HTML data if available
+                            if 'parsed' in locals() and parsed:
+                                page_row_data['title'] = getattr(parsed, 'title', '') or ''
+                                page_row_data['meta_description'] = getattr(parsed, 'meta_description', '') or ''
+                                page_row_data['h1'] = (parsed.h1_h6.get('h1', [''])[0] if hasattr(parsed, 'h1_h6') and parsed.h1_h6 else '')
+                                page_row_data['word_count'] = getattr(parsed, 'word_count', 0) or 0
+                                page_row_data['canonical_url'] = getattr(parsed, 'canonical', '') or getattr(parsed, 'canonical_url', '') or ''
+
+                            pages_per_sec = round(pages_crawled / max(1.0, (time.time() - crawl_start_time)), 1)
                             progress_data = {
                                 "crawled": pages_crawled,
                                 "total": active_total,
+                                "max_pages": self.max_pages,
+                                "pages_per_sec": pages_per_sec,
                                 "url": url,
                                 "queued": pending_count + self.frontier.qsize(),
                                 "errors": crawl_errors,
                                 "avg_response_ms": avg_response,
                                 "memory_mb": mem_mb,
                                 "visited_count": len(self.visited),
+                                "page_row": page_row_data
                             }
                             if asyncio.iscoroutinefunction(self.progress_callback):
                                 await self.progress_callback(progress_data)
@@ -928,6 +976,39 @@ class CrawlEngine:
                     await asyncio.sleep(backoff)
                     continue
                 break
+            except httpx.TooManyRedirects as e:
+                logger.warning(f"Too many redirects fetching {url}: {e}")
+                elapsed_ms = (time.time() - start_time) * 1000
+                hist = getattr(e, 'response', None)
+                chain = []
+                chain_details = []
+                if hist and hasattr(hist, 'history'):
+                    for r in hist.history:
+                        r_u = str(r.url)
+                        r_p = urlparse(r_u)
+                        chain.append(r_u)
+                        chain_details.append({
+                            "url": r_u,
+                            "status": r.status_code,
+                            "type": f"{r.status_code} Redirect",
+                            "protocol": r_p.scheme.upper(),
+                            "domain": r_p.netloc
+                        })
+                return PageResponse(
+                    url=url,
+                    final_url=url,
+                    status_code=310,
+                    headers={},
+                    html="",
+                    response_time_ms=elapsed_ms,
+                    content_type="text/html",
+                    redirect_chain=chain,
+                    http_version="HTTP/1.1",
+                    headers_json="{}",
+                    cookies_json="{}",
+                    redirect_type="Redirect Loop / Too Many Redirects",
+                    redirect_chain_details=chain_details
+                )
             except (httpx.RequestError, httpx.TimeoutException) as e:
                 if attempt < max_retries:
                     wait_sec = 1.0 * (attempt + 1)
@@ -975,10 +1056,14 @@ class CrawlEngine:
             for r in resp.history:
                 r_code = r.status_code
                 r_label = "Permanent" if r_code in (301, 308) else "Temporary"
+                r_u = str(r.url)
+                r_p = urlparse(r_u)
                 chain_details.append({
-                    "url": str(r.url),
+                    "url": r_u,
                     "status": r_code,
-                    "type": f"{r_code} {r_label}"
+                    "type": f"{r_code} {r_label}",
+                    "protocol": r_p.scheme.upper(),
+                    "domain": r_p.netloc
                 })
             last_hist = resp.history[-1]
             code = last_hist.status_code
@@ -994,10 +1079,14 @@ class CrawlEngine:
                 redirect_type = f"{code} Redirect"
 
         if chain_details:
+            f_u = str(resp.url)
+            f_p = urlparse(f_u)
             chain_details.append({
-                "url": str(resp.url),
+                "url": f_u,
                 "status": resp.status_code,
-                "type": "Final"
+                "type": f"{resp.status_code} Final",
+                "protocol": f_p.scheme.upper(),
+                "domain": f_p.netloc
             })
 
         server_header = resp.headers.get("server")

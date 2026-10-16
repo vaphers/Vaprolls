@@ -45,31 +45,16 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
             {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
             {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'},
             {'key': 'canonical_status', 'label': 'Canonical Status', 'width': 'w-32'},
-            {'key': 'title', 'label': 'Title 1', 'width': 'min-w-[200px]'},
-            {'key': 'title_length', 'label': 'Title 1 Length', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'meta_description', 'label': 'Meta Description 1', 'width': 'min-w-[200px]'},
-            {'key': 'meta_description_length', 'label': 'Description 1 Length', 'width': 'w-28', 'align': 'text-right'},
+            {'key': 'title', 'label': 'Title', 'width': 'min-w-[200px]'},
+            {'key': 'meta_description', 'label': 'Meta Description', 'width': 'min-w-[200px]'},
+            {'key': 'h1', 'label': 'H1', 'width': 'min-w-[180px]'},
             {'key': 'canonical_url', 'label': 'Canonical Link Element', 'width': 'min-w-[200px]'},
-            {'key': 'internal_pagerank', 'label': 'Internal PageRank', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'size_bytes', 'label': 'Size', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'transferred_bytes', 'label': 'Transferred', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'total_transferred_bytes', 'label': 'Total Transferred', 'width': 'w-28', 'align': 'text-right'},
             {'key': 'word_count', 'label': 'Word Count', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'sentence_count', 'label': 'Sentence Count', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'avg_words_per_sentence', 'label': 'Avg Words/Sentence', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'text_ratio', 'label': 'Text Ratio', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'crawl_depth', 'label': 'Crawl Depth', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'folder_depth', 'label': 'Folder Depth', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'inlinks_count', 'label': 'Inlinks', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'unique_inlinks', 'label': 'Unique Inlinks', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'outlinks_count', 'label': 'Outlinks', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'unique_outlinks', 'label': 'Unique Outlinks', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'response_time', 'label': 'Response Time', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'redirect_url', 'label': 'Redirect URL', 'width': 'min-w-[200px]'},
-            {'key': 'language', 'label': 'Language', 'width': 'w-20'},
-            {'key': 'http_version', 'label': 'HTTP Version', 'width': 'w-24'},
-            {'key': 'mobile_alt_link', 'label': 'Mobile Alt Link', 'width': 'min-w-[200px]'},
-            {'key': 'crawl_timestamp', 'label': 'Crawl Timestamp', 'width': 'w-36'}
+            {'key': 'redirect_url', 'label': 'Redirect URL', 'width': 'min-w-[200px]'}
         ]
     },
 
@@ -90,16 +75,19 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
         'label': 'Response Codes',
         'columns': [
             {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
-            {'key': 'content_type', 'label': 'Content Type', 'width': 'w-32'},
+            {'key': 'url', 'label': 'Address', 'width': 'min-w-[340px]'},
+            {'key': 'content_type', 'label': 'Content Type', 'width': 'w-28'},
             {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
-            {'key': 'status', 'label': 'Status', 'width': 'w-28'},
+            {'key': 'status', 'label': 'Status', 'width': 'w-24'},
             {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
             {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'},
+            {'key': 'redirect_chain_length', 'label': 'Redirect Hops', 'width': 'w-24', 'align': 'text-right'},
+            {'key': 'redirect_chain_type', 'label': 'Chain Type', 'width': 'w-32'},
+            {'key': 'redirect_type', 'label': 'Redirect Type', 'width': 'w-28'},
+            {'key': 'redirect_url', 'label': 'Immediate Target', 'width': 'min-w-[220px]'},
+            {'key': 'final_destination', 'label': 'Final Destination', 'width': 'min-w-[220px]'},
             {'key': 'inlinks_count', 'label': 'Inlinks', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'response_time', 'label': 'Response Time', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'redirect_url', 'label': 'Redirect URL', 'width': 'min-w-[240px]'},
-            {'key': 'redirect_type', 'label': 'Redirect Type', 'width': 'w-28'}
+            {'key': 'response_time', 'label': 'Response Time', 'width': 'w-24', 'align': 'text-right'}
         ]
     },
 
@@ -130,19 +118,6 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
         ]
     },
 
-    'meta_keywords': {
-        'label': 'Meta Keywords',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[300px]'},
-            {'key': 'occurrences', 'label': 'Occurrences', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'meta_keywords', 'label': 'Meta Keywords 1', 'width': 'min-w-[300px]'},
-            {'key': 'meta_keywords_length', 'label': 'Meta Keywords 1 Length', 'width': 'w-32', 'align': 'text-right'},
-            {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
-            {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'}
-        ]
-    },
-
     'h1': {
         'label': 'H1',
         'columns': [
@@ -151,19 +126,6 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
             {'key': 'occurrences', 'label': 'Occurrences', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'h1_1', 'label': 'H1-1', 'width': 'min-w-[240px]'},
             {'key': 'h1_1_length', 'label': 'H1-1 Length', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
-            {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'}
-        ]
-    },
-
-    'h2': {
-        'label': 'H2',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[300px]'},
-            {'key': 'occurrences', 'label': 'Occurrences', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'h2_1', 'label': 'H2-1', 'width': 'min-w-[240px]'},
-            {'key': 'h2_1_length', 'label': 'H2-1 Length', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
             {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'}
         ]
@@ -208,23 +170,9 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
             {'key': 'canonical_status', 'label': 'Canonical Status', 'width': 'w-32'},
             {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
             {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'},
-            {'key': 'canonical_url', 'label': 'Canonical Link Element 1', 'width': 'min-w-[260px]'},
+            {'key': 'canonical_url', 'label': 'Canonical Link Element', 'width': 'min-w-[260px]'},
             {'key': 'http_canonical', 'label': 'HTTP Canonical', 'width': 'min-w-[240px]'},
             {'key': 'robots_meta', 'label': 'Meta Robots 1', 'width': 'min-w-[180px]'}
-        ]
-    },
-
-    'pagination': {
-        'label': 'Pagination',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[300px]'},
-            {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
-            {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'},
-            {'key': 'canonical_url', 'label': 'Canonical Link Element 1', 'width': 'min-w-[240px]'},
-            {'key': 'http_canonical', 'label': 'HTTP Canonical', 'width': 'min-w-[200px]'},
-            {'key': 'robots_meta', 'label': 'Meta Robots 1', 'width': 'min-w-[160px]'},
-            {'key': 'x_robots_tag', 'label': 'X-Robots-Tag 1', 'width': 'min-w-[160px]'}
         ]
     },
 
@@ -244,43 +192,6 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
         ]
     },
 
-    'javascript': {
-        'label': 'JavaScript',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[280px]'},
-            {'key': 'status_code', 'label': 'Status Code', 'width': 'w-20', 'align': 'text-center'},
-            {'key': 'status', 'label': 'Status', 'width': 'w-24'},
-            {'key': 'html_word_count', 'label': 'HTML Word Count', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'rendered_word_count', 'label': 'Rendered Word Count', 'width': 'w-32', 'align': 'text-right'},
-            {'key': 'word_count_change', 'label': 'Word Count Change', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'js_word_count_pct', 'label': 'JS Word Count %', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'html_title', 'label': 'HTML Title', 'width': 'min-w-[180px]'},
-            {'key': 'rendered_title', 'label': 'Rendered Title', 'width': 'min-w-[180px]'},
-            {'key': 'html_h1', 'label': 'HTML H1', 'width': 'min-w-[160px]'},
-            {'key': 'rendered_h1', 'label': 'Rendered H1', 'width': 'min-w-[160px]'},
-            {'key': 'html_meta_description', 'label': 'HTML Meta Desc', 'width': 'min-w-[180px]'},
-            {'key': 'rendered_meta_description', 'label': 'Rendered Meta Desc', 'width': 'min-w-[180px]'},
-            {'key': 'html_canonical', 'label': 'HTML Canonical', 'width': 'min-w-[180px]'},
-            {'key': 'rendered_canonical', 'label': 'Rendered Canonical', 'width': 'min-w-[180px]'},
-            {'key': 'unique_inlinks', 'label': 'Unique Inlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_js_inlinks', 'label': 'Unique JS Inlinks', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'unique_outlinks', 'label': 'Unique Outlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_js_outlinks', 'label': 'Unique JS Outlinks', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'unique_external_outlinks', 'label': 'Ext Outlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_external_js_outlinks', 'label': 'Ext JS Outlinks', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'html_meta_robots', 'label': 'HTML Meta Robots', 'width': 'w-32'},
-            {'key': 'rendered_meta_robots', 'label': 'Rendered Meta Robots', 'width': 'w-36'},
-            {'key': 'pretty_url', 'label': 'Pretty URL', 'width': 'min-w-[200px]'},
-            {'key': 'ugly_url', 'label': 'Ugly URL', 'width': 'min-w-[200px]'},
-            {'key': 'js_errors', 'label': 'JS Error', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'js_warnings', 'label': 'JS Warning', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'js_info', 'label': 'JS Info', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'js_debug', 'label': 'JS Debug', 'width': 'w-20', 'align': 'text-right'},
-            {'key': 'js_issues', 'label': 'JS Issue', 'width': 'w-20', 'align': 'text-right'}
-        ]
-    },
-
     'links': {
         'label': 'Links',
         'columns': [
@@ -292,14 +203,10 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
             {'key': 'link_score', 'label': 'Link Score', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'inlinks_count', 'label': 'Inlinks', 'width': 'w-20', 'align': 'text-right'},
             {'key': 'unique_inlinks', 'label': 'Unique Inlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_js_inlinks', 'label': 'Unique JS Inlinks', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'inlinks_pct', 'label': '% of Total', 'width': 'w-20', 'align': 'text-right'},
             {'key': 'outlinks_count', 'label': 'Outlinks', 'width': 'w-20', 'align': 'text-right'},
             {'key': 'unique_outlinks', 'label': 'Unique Outlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_js_outlinks', 'label': 'Unique JS Outlinks', 'width': 'w-28', 'align': 'text-right'},
             {'key': 'external_outlinks', 'label': 'Ext Outlinks', 'width': 'w-24', 'align': 'text-right'},
-            {'key': 'unique_external_outlinks', 'label': 'Unique Ext Outlinks', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'unique_external_js_outlinks', 'label': 'Unique Ext JS Outlinks', 'width': 'w-32', 'align': 'text-right'}
+            {'key': 'unique_external_outlinks', 'label': 'Unique Ext Outlinks', 'width': 'w-28', 'align': 'text-right'}
         ]
     },
 
@@ -322,38 +229,6 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
         ]
     },
 
-    'sitemaps': {
-        'label': 'Sitemaps',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
-            {'key': 'content_type', 'label': 'Content Type', 'width': 'w-32'},
-            {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
-            {'key': 'status', 'label': 'Status', 'width': 'w-28'},
-            {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
-            {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'}
-        ]
-    },
-
-    'pagespeed': {
-        'label': 'PageSpeed',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
-            {'key': 'psi_status', 'label': 'PSI Request Status', 'width': 'w-32'}
-        ]
-    },
-
-    'mobile': {
-        'label': 'Mobile',
-        'columns': [
-            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
-            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
-            {'key': 'psi_status', 'label': 'PSI Request', 'width': 'w-32'},
-            {'key': 'mobile_alt_link', 'label': 'Mobile Alternate Link', 'width': 'min-w-[280px]'}
-        ]
-    },
-
     'accessibility': {
         'label': 'Accessibility',
         'columns': [
@@ -370,22 +245,56 @@ TAB_SCHEMAS: Dict[str, Dict[str, Any]] = {
             {'key': 'accessibility_wcag_2_0_aa', 'label': 'WCAG 2.0 AA', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'accessibility_wcag_2_0_aaa', 'label': 'WCAG 2.0 AAA', 'width': 'w-24', 'align': 'text-right'},
             {'key': 'accessibility_wcag_2_1_aa', 'label': 'WCAG 2.1 AA', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'accessibility_wcag_2_2_aa', 'label': 'WCAG 2.2 AA', 'width': 'w-28', 'align': 'text-right'},
-            {'key': 'psi_status', 'label': 'PSI Request Status', 'width': 'w-32'}
+            {'key': 'accessibility_wcag_2_2_aa', 'label': 'WCAG 2.2 AA', 'width': 'w-28', 'align': 'text-right'}
         ]
     },
 
-    'amp': {
-        'label': 'AMP',
+    'custom_extraction': {
+        'label': 'Custom Extraction',
         'columns': [
             {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
             {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
-            {'key': 'content_type', 'label': 'Content Type', 'width': 'w-28'},
             {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
-            {'key': 'status', 'label': 'Status', 'width': 'w-28'},
-            {'key': 'amp_html_link', 'label': 'AMP HTML Link', 'width': 'min-w-[280px]'},
             {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
-            {'key': 'indexability_status', 'label': 'Indexability Status', 'width': 'w-32'}
+            {'key': 'custom_extraction_summary', 'label': 'Extracted Data', 'width': 'min-w-[300px]'}
+        ]
+    },
+
+    'custom_search': {
+        'label': 'Custom Search',
+        'columns': [
+            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
+            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
+            {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
+            {'key': 'matched_rules', 'label': 'Matched Search Rules', 'width': 'min-w-[240px]'},
+            {'key': 'search_snippet', 'label': 'Snippet', 'width': 'min-w-[320px]'}
+        ]
+    },
+
+    'orphans': {
+        'label': 'Orphan Pages',
+        'columns': [
+            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
+            {'key': 'url', 'label': 'Address', 'width': 'min-w-[360px]'},
+            {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
+            {'key': 'unique_inlinks', 'label': 'Internal Inlinks', 'width': 'w-24', 'align': 'text-center'},
+            {'key': 'click_depth', 'label': 'Click Depth', 'width': 'w-24', 'align': 'text-center'},
+            {'key': 'indexability', 'label': 'Indexability', 'width': 'w-28'},
+            {'key': 'title', 'label': 'Title', 'width': 'min-w-[240px]'},
+            {'key': 'canonical_url', 'label': 'Canonical Link Element', 'width': 'min-w-[240px]'}
+        ]
+    },
+
+    'redirect_chains': {
+        'label': 'Redirect Chains',
+        'columns': [
+            {'key': 'row', 'label': '#', 'width': 'w-12', 'align': 'text-center'},
+            {'key': 'url', 'label': 'Address', 'width': 'min-w-[320px]'},
+            {'key': 'status_code', 'label': 'Status Code', 'width': 'w-24', 'align': 'text-center'},
+            {'key': 'redirect_chain_length', 'label': 'Hops', 'width': 'w-20', 'align': 'text-center'},
+            {'key': 'redirect_type', 'label': 'Redirect Type', 'width': 'w-28'},
+            {'key': 'redirect_chain_summary', 'label': 'Full Redirection Chain', 'width': 'min-w-[400px]'},
+            {'key': 'final_destination', 'label': 'Final Destination', 'width': 'min-w-[320px]'}
         ]
     }
 }
@@ -597,6 +506,40 @@ def enrich_base_page_data(raw_pages: List[Dict[str, Any]], audit: Optional[Dict[
         meta_kw_val = p.get('meta_keywords') or ''
         h1_val = p.get('h1') or ''
 
+        # Compute redirect chain details
+        chain_raw = p.get('redirect_chain')
+        chain_list = []
+        if chain_raw:
+            try:
+                chain_list = json.loads(chain_raw) if isinstance(chain_raw, str) else chain_raw
+            except Exception:
+                chain_list = []
+        
+        details_raw = p.get('redirect_chain_details')
+        details_list = []
+        if details_raw:
+            try:
+                details_list = json.loads(details_raw) if isinstance(details_raw, str) else details_raw
+            except Exception:
+                details_list = []
+
+        redir_len = len(chain_list) if chain_list else (len(details_list) if details_list else (1 if p.get('redirect_url') else 0))
+        final_dest = chain_list[-1] if chain_list else (details_list[-1].get('url') if (details_list and isinstance(details_list[-1], dict)) else (p.get('redirect_url') or url))
+        
+        norm_c = [u.rstrip('/').lower() for u in chain_list if isinstance(u, str)]
+        has_loop = len(set(norm_c)) < len(norm_c) if len(norm_c) > 1 else False
+        if sc == 310 or p.get('redirect_type') == 'Redirect Loop / Too Many Redirects':
+            has_loop = True
+
+        if has_loop:
+            redir_chain_type = 'Loop Detected'
+        elif redir_len > 1:
+            redir_chain_type = f'Chain ({redir_len} hops)'
+        elif redir_len == 1:
+            redir_chain_type = 'Simple (1 hop)'
+        else:
+            redir_chain_type = 'None'
+
         enriched.append({
             'id': pid,
             'url': url,
@@ -657,6 +600,11 @@ def enrich_base_page_data(raw_pages: List[Dict[str, Any]], audit: Optional[Dict[
             'html_size': length,
             'redirect_url': p.get('redirect_url') or '',
             'redirect_type': p.get('redirect_type') or (f"HTTP {sc}" if 300 <= sc < 400 else ''),
+            'redirect_chain_length': redir_len,
+            'redirect_chain_type': redir_chain_type,
+            'redirect_chain_hops': chain_list,
+            'redirect_chain_details': details_list,
+            'final_destination': final_dest,
             'final_url': p.get('redirect_url') or url,
             'language': p.get('language') or 'en',
             'http_version': p.get('http_version') or 'HTTP/1.1',
@@ -1236,6 +1184,58 @@ def build_tab_dataset(enriched_pages: List[Dict[str, Any]], tab_key: str,
     elif clean_tab == 'amp':
         filtered_rows = [p for p in enriched_pages if p.get('amp_html_link') or 'html' in (p.get('content_type') or '').lower()]
 
+    elif clean_tab == 'custom_extraction':
+        filtered_rows = []
+        custom_keys = set()
+        for p in enriched_pages:
+            ext_raw = p.get('custom_extractions_json')
+            ext_dict = {}
+            if ext_raw:
+                try: ext_dict = json.loads(ext_raw) if isinstance(ext_raw, str) else ext_raw
+                except: pass
+            r = dict(p)
+            for k, v in ext_dict.items():
+                custom_keys.add(k)
+                r[f'custom_{k}'] = v
+            r['custom_extraction_summary'] = ' | '.join([f"{k}: {v}" for k, v in ext_dict.items() if v]) or '—'
+            filtered_rows.append(r)
+        for k in sorted(custom_keys):
+            dynamic_columns.append({'key': f'custom_{k}', 'label': k, 'width': 'min-w-[200px]'})
+
+    elif clean_tab == 'custom_search':
+        filtered_rows = []
+        for p in enriched_pages:
+            srch_raw = p.get('custom_search_json')
+            srch_dict = {}
+            if srch_raw:
+                try: srch_dict = json.loads(srch_raw) if isinstance(srch_raw, str) else srch_raw
+                except: pass
+            r = dict(p)
+            matched_names = [k for k, v in srch_dict.items() if v.get('matched')]
+            first_snip = next((v.get('snippet') for v in srch_dict.values() if v.get('snippet')), '—')
+            r['matched_rules'] = ', '.join(matched_names) if matched_names else 'No Matches'
+            r['search_snippet'] = first_snip
+            filtered_rows.append(r)
+
+    elif clean_tab == 'orphans':
+        filtered_rows = [p for p in enriched_pages if p.get('is_orphan') or p.get('unique_inlinks', 1) == 0]
+
+    elif clean_tab == 'redirect_chains':
+        filtered_rows = []
+        for p in enriched_pages:
+            sc = p.get('status_code', 0)
+            chain_raw = p.get('redirect_chain_json')
+            if (300 <= sc < 400) or p.get('redirect_url') or chain_raw:
+                r = dict(p)
+                chain = []
+                if chain_raw:
+                    try: chain = json.loads(chain_raw) if isinstance(chain_raw, str) else chain_raw
+                    except: pass
+                r['redirect_chain_length'] = len(chain) - 1 if chain else 1
+                r['redirect_chain_summary'] = ' -> '.join([f"{c['url']} ({c.get('status_code', '')})" for c in chain]) if chain else p.get('redirect_url', '')
+                r['final_destination'] = chain[-1]['url'] if chain else p.get('redirect_url', '')
+                filtered_rows.append(r)
+
     else:
         filtered_rows = list(enriched_pages)
 
@@ -1318,55 +1318,255 @@ def filter_and_sort_tab_rows(rows: List[Dict[str, Any]], sort_by: Optional[str] 
 # Right Panel Aggregators
 # -------------------------------------------------------------------------
 
+SEO_FIX_CATALOG = {
+    '4xx_error': {
+        'name': '4xx Client Error (Broken URL)',
+        'category': 'Indexability & Response Codes',
+        'priority': 'critical',
+        'description': 'Search engines and users encountered a broken 4xx response code (such as 404 Not Found or 403 Forbidden). Search engines will de-index broken pages and drop rankings.',
+        'how_to_fix': '1. Check if the page was moved and configure a permanent 301 redirect to the new destination.\n2. If the page was deleted intentionally, ensure internal links pointing to it are removed or updated.\n3. Restore the missing resource if it was accidentally removed.',
+        'code_snippet': '# Nginx 301 Redirect:\nrewrite ^/old-broken-url$ /new-live-url permanent;\n\n# Apache .htaccess 301 Redirect:\nRedirect 301 /old-broken-url /new-live-url',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/http-network-errors'
+    },
+    '5xx_error': {
+        'name': '5xx Server Error',
+        'category': 'Indexability & Response Codes',
+        'priority': 'critical',
+        'description': 'The web server failed to fulfill a request due to an internal crash, timeout, or reverse proxy error. Googlebot slows down crawl rate on sites returning 5xx errors.',
+        'how_to_fix': '1. Inspect web server and application error logs (e.g. /var/log/nginx/error.log).\n2. Resolve unhandled exceptions, database connection timeouts, and memory limits.\n3. Verify reverse proxy gateway timeouts (e.g. proxy_read_timeout in Nginx).',
+        'code_snippet': '# Check server logs for stack traces:\ntail -n 100 /var/log/nginx/error.log',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/http-network-errors'
+    },
+    'orphan_page': {
+        'name': 'Orphan Page (0 Internal Inlinks)',
+        'category': 'Site Architecture & Equity',
+        'priority': 'high',
+        'description': 'This page has zero incoming internal links from anywhere on your website. Search engines will struggle to discover, index, and pass PageRank equity to orphan pages.',
+        'how_to_fix': '1. Add contextual in-content hyperlinks from related parent category pages or relevant articles.\n2. Include the URL in the primary or footer navigation if it is a key conversion page.\n3. Verify the URL is listed in your XML sitemap.',
+        'code_snippet': '<!-- Add contextual in-content internal link -->\n<p>Explore our full guide on <a href="/target-orphan-page">Page Topic</a>.</p>',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/links-crawlable'
+    },
+    'missing_title': {
+        'name': 'Missing Page Title',
+        'category': 'On-Page SEO',
+        'priority': 'critical',
+        'description': 'The page is missing a <title> tag. The title tag is one of the most critical on-page ranking factors and forms the headline in Google search snippets.',
+        'how_to_fix': '1. Add a unique, descriptive <title> tag inside the <head> element.\n2. Keep the length between 50 and 60 characters.\n3. Include your primary target keyword near the beginning, followed by your brand.',
+        'code_snippet': '<head>\n  <title>Primary Keyword - Specific Topic | Brand Name</title>\n</head>',
+        'help_url': 'https://developers.google.com/search/docs/appearance/title-link'
+    },
+    'title_too_long': {
+        'name': 'Page Title Over 60 Characters',
+        'category': 'On-Page SEO',
+        'priority': 'warning',
+        'description': 'The title tag exceeds 60 characters (or 580 pixels) and will be truncated with an ellipsis (...) in Google search results, lowering click-through rates.',
+        'how_to_fix': '1. Shorten the title to under 60 characters.\n2. Remove boilerplate filler words and keep the primary keyword focused.',
+        'code_snippet': '<title>Shorter Focused Title Under 60 Chars | Brand</title>',
+        'help_url': 'https://developers.google.com/search/docs/appearance/title-link'
+    },
+    'title_too_short': {
+        'name': 'Page Title Under 30 Characters',
+        'category': 'On-Page SEO',
+        'priority': 'notice',
+        'description': 'The title tag is too brief and fails to provide adequate search intent context or keyword coverage.',
+        'how_to_fix': '1. Expand the title to 35-55 characters.\n2. Add secondary descriptors or benefits to attract user clicks.',
+        'code_snippet': '<title>Complete Guide to Organic SEO Audits | Vaplers</title>',
+        'help_url': 'https://developers.google.com/search/docs/appearance/title-link'
+    },
+    'missing_meta_desc': {
+        'name': 'Missing Meta Description',
+        'category': 'On-Page SEO',
+        'priority': 'high',
+        'description': 'The page lacks a meta description. While not a direct ranking factor, meta descriptions directly drive search engine click-through rates (CTR).',
+        'how_to_fix': '1. Add a unique <meta name="description" content="..."> tag in <head>.\n2. Summarize the page in 120-155 characters and include an enticing call-to-action.',
+        'code_snippet': '<meta name="description" content="Learn how to perform technical SEO audits with step-by-step instructions. Find crawl errors, broken links, and fix them fast." />',
+        'help_url': 'https://developers.google.com/search/docs/appearance/snippets'
+    },
+    'meta_desc_too_long': {
+        'name': 'Meta Description Over 160 Characters',
+        'category': 'On-Page SEO',
+        'priority': 'notice',
+        'description': 'The meta description exceeds 160 characters and will be cut off on mobile and desktop search result snippets.',
+        'how_to_fix': 'Condense the description to between 120 and 155 characters to ensure the complete message and call-to-action are visible.',
+        'code_snippet': '<meta name="description" content="Concise summary under 155 characters with a compelling call to action." />',
+        'help_url': 'https://developers.google.com/search/docs/appearance/snippets'
+    },
+    'missing_h1': {
+        'name': 'Missing H1 Heading',
+        'category': 'Content & Structure',
+        'priority': 'high',
+        'description': 'The page does not contain an <h1> tag. Headings help search engines understand page structure and hierarchy.',
+        'how_to_fix': '1. Add exactly one primary <h1> heading near the top of the main body content.\n2. Ensure the H1 clearly communicates the central topic of the page.',
+        'code_snippet': '<h1>Primary Page Heading & Keyword Focus</h1>',
+        'help_url': 'https://developers.google.com/search/docs/appearance/title-link'
+    },
+    'multiple_h1': {
+        'name': 'Multiple H1 Headings',
+        'category': 'Content & Structure',
+        'priority': 'warning',
+        'description': 'The page contains more than one <h1> tag. Having multiple H1s can confuse search engines about the main topic and dilutes semantic hierarchy.',
+        'how_to_fix': 'Retain only one primary <h1> element for the main headline, and convert all secondary section titles into <h2> or <h3> headings.',
+        'code_snippet': '<h1>Main Page Title</h1>\n<!-- Convert secondary headings to h2: -->\n<h2>Section Topic A</h2>\n<h2>Section Topic B</h2>',
+        'help_url': 'https://developers.google.com/search/docs/appearance/title-link'
+    },
+    'canonical_mismatch': {
+        'name': 'Canonical Mismatch (Canonicalised URL)',
+        'category': 'Canonicals & Indexability',
+        'priority': 'warning',
+        'description': 'The canonical tag on this URL points to a different URL. Search engines will treat the target URL as the master version and may exclude this page from rankings.',
+        'how_to_fix': '1. If this page is unique and intended to rank, update the canonical to be self-referential.\n2. If this page is a duplicate or variant, verify the canonical destination is correct.',
+        'code_snippet': '<link rel="canonical" href="https://example.com/current-canonical-url" />',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls'
+    },
+    'redirect_chain': {
+        'name': 'Multi-Hop Redirect Chain',
+        'category': 'Indexability & Response Codes',
+        'priority': 'high',
+        'description': 'The URL undergoes two or more redirect hops before reaching the final destination. Chains waste crawl budget, add latency, and dilute link equity.',
+        'how_to_fix': 'Update all internal links and server rewrite rules so the link points directly to the final 200 OK destination.',
+        'code_snippet': '# Direct link from URL A -> URL C (eliminating hop B)',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/301-redirects'
+    },
+    'slow_response': {
+        'name': 'Slow Response Time (> 1000ms)',
+        'category': 'Performance & CWV',
+        'priority': 'warning',
+        'description': 'The server took more than 1 second to respond (Time to First Byte). Slow page speeds degrade user experience and Core Web Vitals rankings.',
+        'how_to_fix': '1. Enable server-side HTML/page caching (Varnish, Redis, Nginx FastCGI).\n2. Optimize backend database queries and external API calls.\n3. Use a content delivery network (CDN) like Cloudflare.',
+        'code_snippet': '# Enable Gzip in Nginx:\ngzip on;\ngzip_types text/plain text/css application/json application/javascript text/xml;',
+        'help_url': 'https://web.dev/explore/fast'
+    },
+    'noindex_tag': {
+        'name': 'Noindex Directive Detected',
+        'category': 'Canonicals & Indexability',
+        'priority': 'warning',
+        'description': 'A noindex directive instructs search engines NOT to index this page. If this page is intended for public organic search, this prevents it from appearing.',
+        'how_to_fix': 'If this page should rank on Google, remove "noindex" from the meta robots tag or the X-Robots-Tag HTTP header.',
+        'code_snippet': '<!-- Change to allow indexing: -->\n<meta name="robots" content="index, follow" />',
+        'help_url': 'https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag'
+    }
+}
+
 def build_issues_summary(raw_issues: List[Dict[str, Any]], total_pages: int, raw_pages: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """
-    Aggregates issues by (category, message) for right panel Issues tab.
-    urls_list always contains full URLs (resolved from page_id if needed).
+    Aggregates issues by (category, name) with comprehensive actionable fixes and code examples.
+    Also automatically scans raw_pages so common SEO issues are never omitted.
     """
-    # Build page_id -> URL lookup from pages list
     page_id_to_url: Dict[int, str] = {}
-    for p in (raw_pages or []):
+    pages_list = raw_pages or []
+    for p in pages_list:
         pid = p.get('id')
         u = p.get('url') or ''
         if pid and u:
             page_id_to_url[int(pid)] = u
 
-    grouped: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    grouped: Dict[str, Dict[str, Any]] = {}
+
+    def register_issue(code: str, url: str, dynamic_msg: str = None, dynamic_rec: str = None, dynamic_sev: str = None):
+        if not url: return
+        cat_info = SEO_FIX_CATALOG.get(code, {})
+        issue_name = cat_info.get('name') or (code.replace('_', ' ').title())
+        priority = dynamic_sev or cat_info.get('priority') or 'warning'
+        category = cat_info.get('category') or 'Technical SEO'
+        description = dynamic_msg or cat_info.get('description') or 'SEO issue detected on this URL.'
+        how_to_fix = dynamic_rec or cat_info.get('how_to_fix') or 'Follow standard SEO guidelines to resolve this issue.'
+        code_snippet = cat_info.get('code_snippet') or ''
+        help_url = cat_info.get('help_url') or 'https://developers.google.com/search/docs'
+
+        key = issue_name
+        if key not in grouped:
+            grouped[key] = {
+                'issue_name': issue_name,
+                'issue_type': category,
+                'issue_priority': priority,
+                'urls_set': set(),
+                'description': description,
+                'how_to_fix': how_to_fix,
+                'code_snippet': code_snippet,
+                'help_url': help_url
+            }
+        grouped[key]['urls_set'].add(url)
+
+    # 1. Ingest raw_issues recorded by analyzers
     for iss in (raw_issues or []):
         cat = iss.get('category') or 'onpage'
         msg = iss.get('message') or 'Issue detected'
         sev = iss.get('severity') or 'medium'
         rec = iss.get('recommendation') or ''
-        key = (cat, msg)
-
-        if key not in grouped:
-            # Format issue name
-            name_parts = (iss.get('issue_type') or cat).replace('_', ' ').title()
-            grouped[key] = {
-                'issue_name': name_parts,
-                'issue_type': cat,
-                'issue_priority': sev,
-                'urls_set': set(),
-                'description': msg,
-                'how_to_fix': rec,
-                'help_url': 'https://developers.google.com/search/docs'
-            }
-
-        # Prefer issue.url; fall back to looking up page_id in pages
+        code = iss.get('issue_type') or cat
         issue_url = (iss.get('url') or '').strip()
-        if not issue_url:
-            pid = iss.get('page_id')
-            if pid is not None:
-                issue_url = page_id_to_url.get(int(pid), '')
-        if issue_url:
-            grouped[key]['urls_set'].add(issue_url)
+        if not issue_url and iss.get('page_id'):
+            issue_url = page_id_to_url.get(int(iss.get('page_id')), '')
 
+        register_issue(code, issue_url, dynamic_msg=msg, dynamic_rec=rec, dynamic_sev=sev)
+
+    # 2. Derive issues directly from raw_pages to guarantee zero missing issues
+    for p in pages_list:
+        u = (p.get('url') or '').strip()
+        if not u: continue
+        sc = p.get('status_code', 200)
+        ct = (p.get('content_type') or '').lower()
+        is_html = 'text/html' in ct or not ct
+
+        # Broken Links & Errors
+        if sc >= 500:
+            register_issue('5xx_error', u, dynamic_msg=f"Page returned HTTP {sc} server error.")
+        elif sc >= 400:
+            register_issue('4xx_error', u, dynamic_msg=f"Page returned HTTP {sc} client error (broken resource).")
+        elif sc in (301, 302, 307, 308) and (p.get('redirect_chain_length', 1) > 1):
+            register_issue('redirect_chain', u)
+
+        # Orphan Pages
+        if p.get('is_orphan'):
+            register_issue('orphan_page', u)
+
+        # On-Page Metadata Checks (only for HTML)
+        if is_html and sc == 200:
+            title = (p.get('title') or '').strip()
+            if not title:
+                register_issue('missing_title', u)
+            elif len(title) > 65:
+                register_issue('title_too_long', u, dynamic_msg=f"Title is {len(title)} characters long (exceeds recommended 60 chars).")
+            elif len(title) < 25:
+                register_issue('title_too_short', u, dynamic_msg=f"Title is only {len(title)} characters long.")
+
+            meta_desc = (p.get('meta_description') or '').strip()
+            if not meta_desc:
+                register_issue('missing_meta_desc', u)
+            elif len(meta_desc) > 165:
+                register_issue('meta_desc_too_long', u, dynamic_msg=f"Meta description is {len(meta_desc)} characters long.")
+
+            h1 = (p.get('h1') or '').strip()
+            h1_count = p.get('h1_count', 1 if h1 else 0)
+            if not h1:
+                register_issue('missing_h1', u)
+            elif h1_count > 1:
+                register_issue('multiple_h1', u, dynamic_msg=f"Page contains {h1_count} H1 tags.")
+
+            # Canonicals
+            can_url = (p.get('canonical_url') or '').strip()
+            can_status = p.get('canonical_status') or ''
+            if can_url and can_url != u and can_status == 'Canonicalised':
+                register_issue('canonical_mismatch', u, dynamic_msg=f"Canonical points to {can_url}")
+
+            # Directives
+            idx_status = (p.get('indexability_status') or '').lower()
+            if 'noindex' in idx_status:
+                register_issue('noindex_tag', u)
+
+            # Response time
+            resp_time = p.get('response_time') or (p.get('response_time_ms', 0) / 1000.0)
+            if resp_time > 1.2:
+                register_issue('slow_response', u, dynamic_msg=f"Response time was {resp_time:.2f}s (exceeds 1s threshold).")
+
+    # 3. Assemble and rank issues by severity
     issues_list = []
-    # Sort priority order: critical > high > medium > low > info
-    prio_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'info': 4}
+    prio_order = {'critical': 0, 'high': 1, 'warning': 2, 'medium': 3, 'notice': 4, 'low': 5, 'info': 6}
+
     for item in grouped.values():
         cnt = len(item['urls_set'])
-        pct = round((cnt / max(1, total_pages)) * 100, 1)
+        if cnt == 0: continue
+        pct = round((cnt / max(1, total_pages or len(pages_list) or 1)) * 100, 1)
         issues_list.append({
             'issue_name': item['issue_name'],
             'issue_type': item['issue_type'],
@@ -1376,11 +1576,113 @@ def build_issues_summary(raw_issues: List[Dict[str, Any]], total_pages: int, raw
             'pct_of_total': pct,
             'description': item['description'],
             'how_to_fix': item['how_to_fix'],
+            'code_snippet': item['code_snippet'],
             'help_url': item['help_url']
         })
 
     issues_list.sort(key=lambda x: (prio_order.get(x['issue_priority'].lower(), 99), -x['urls']))
     return issues_list
+
+def build_page_issues(page: Dict[str, Any], db_issues: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """
+    Returns rich actionable issue objects for a single URL inspected in UrlInspector,
+    including severity, message, description, how_to_fix, code_snippet, and help_url.
+    """
+    issues: List[Dict[str, Any]] = []
+    seen_codes = set()
+
+    def add_page_issue(code: str, dynamic_msg: str = None, dynamic_rec: str = None, dynamic_sev: str = None):
+        if code in seen_codes:
+            return
+        seen_codes.add(code)
+        cat_info = SEO_FIX_CATALOG.get(code, {})
+        issue_name = cat_info.get('name') or (code.replace('_', ' ').title())
+        priority = dynamic_sev or cat_info.get('priority') or 'warning'
+        category = cat_info.get('category') or 'Technical SEO'
+        description = dynamic_msg or cat_info.get('description') or 'SEO issue detected on this URL.'
+        how_to_fix = dynamic_rec or cat_info.get('how_to_fix') or 'Follow standard SEO guidelines to resolve this issue.'
+        code_snippet = cat_info.get('code_snippet') or ''
+        help_url = cat_info.get('help_url') or 'https://developers.google.com/search/docs'
+
+        issues.append({
+            'code': code,
+            'title': issue_name,
+            'issue_name': issue_name,
+            'issue_type': issue_name,
+            'severity': priority,
+            'category': category,
+            'description': description,
+            'message': description,
+            'how_to_fix': how_to_fix,
+            'recommendation': how_to_fix,
+            'code_snippet': code_snippet,
+            'help_url': help_url
+        })
+
+    # Ingest existing db_issues
+    for iss in (db_issues or []):
+        cat = iss.get('category') or 'onpage'
+        msg = iss.get('message') or 'Issue detected'
+        sev = iss.get('severity') or 'medium'
+        rec = iss.get('recommendation') or ''
+        code = iss.get('issue_type') or cat
+        add_page_issue(code, dynamic_msg=msg, dynamic_rec=rec, dynamic_sev=sev)
+
+    # Derive on-the-fly from page properties
+    if page:
+        sc = page.get('status_code', 200)
+        ct = (page.get('content_type') or '').lower()
+        is_html = 'text/html' in ct or not ct
+        u = (page.get('url') or '').strip()
+
+        if sc >= 500:
+            add_page_issue('5xx_error', dynamic_msg=f"Page returned HTTP {sc} server error.")
+        elif sc >= 400:
+            add_page_issue('4xx_error', dynamic_msg=f"Page returned HTTP {sc} client error (broken resource).")
+        elif sc in (301, 302, 307, 308) and (page.get('redirect_chain_length', 1) > 1):
+            add_page_issue('redirect_chain')
+
+        if page.get('is_orphan'):
+            add_page_issue('orphan_page')
+
+        if is_html and sc == 200:
+            title = (page.get('title') or '').strip()
+            if not title:
+                add_page_issue('missing_title')
+            elif len(title) > 65:
+                add_page_issue('title_too_long', dynamic_msg=f"Title is {len(title)} characters long (exceeds recommended 60 chars).")
+            elif len(title) < 25:
+                add_page_issue('title_too_short', dynamic_msg=f"Title is only {len(title)} characters long.")
+
+            meta_desc = (page.get('meta_description') or '').strip()
+            if not meta_desc:
+                add_page_issue('missing_meta_desc')
+            elif len(meta_desc) > 165:
+                add_page_issue('meta_desc_too_long', dynamic_msg=f"Meta description is {len(meta_desc)} characters long.")
+
+            h1 = (page.get('h1') or '').strip()
+            h1_count = page.get('h1_count', 1 if h1 else 0)
+            if not h1:
+                add_page_issue('missing_h1')
+            elif h1_count > 1:
+                add_page_issue('multiple_h1', dynamic_msg=f"Page contains {h1_count} H1 tags.")
+
+            can_url = (page.get('canonical_url') or '').strip()
+            can_status = page.get('canonical_status') or ''
+            if can_url and can_url != u and can_status == 'Canonicalised':
+                add_page_issue('canonical_mismatch', dynamic_msg=f"Canonical points to {can_url}")
+
+            idx_status = (page.get('indexability_status') or '').lower()
+            if 'noindex' in idx_status:
+                add_page_issue('noindex_tag')
+
+            resp_time = page.get('response_time') or (page.get('response_time_ms', 0) / 1000.0)
+            if resp_time > 1.2:
+                add_page_issue('slow_response', dynamic_msg=f"Response time was {resp_time:.2f}s (exceeds 1s threshold).")
+
+    prio_order = {'critical': 0, 'high': 1, 'warning': 2, 'medium': 3, 'notice': 4, 'low': 5, 'info': 6}
+    issues.sort(key=lambda x: prio_order.get(x['severity'].lower(), 99))
+    return issues
 
 def build_site_structure_tree(urls: List[str]) -> List[Dict[str, Any]]:
     """

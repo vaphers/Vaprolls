@@ -14,12 +14,15 @@ USER_AGENT_PRESETS = {
 
 @dataclass
 class Config:
-    CRAWL_CONCURRENCY: int = 15
+    CRAWL_CONCURRENCY: int = 30
     CRAWL_DELAY: float = 0.0
-    MAX_PAGES: int = 5000
+    MAX_PAGES: int = 0
     REQUEST_TIMEOUT: int = 10
     USER_AGENT: str = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     DB_PATH: str = 'data/audits.db'
+    CRAWLER_ENGINE: str = field(default_factory=lambda: os.getenv('CRAWLER_ENGINE', 'go'))  # 'go' or 'python'
+    POSTGRES_DSN: str = field(default_factory=lambda: os.getenv('POSTGRES_DSN', ''))
+    GO_CRAWLER_GRPC_TARGET: str = field(default_factory=lambda: os.getenv('GO_CRAWLER_GRPC_TARGET', '127.0.0.1:50051'))
     LIGHTHOUSE_PATH: str = 'npx lighthouse'
     LIGHTHOUSE_ENABLED: bool = False  # Disabled by default for fast audits; use CrUX API or custom metrics
     GEMINI_API_KEY: str = field(default_factory=lambda: os.getenv('GEMINI_API_KEY', ''))

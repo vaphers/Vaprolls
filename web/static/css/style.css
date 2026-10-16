@@ -270,3 +270,124 @@ a, button, tr {
 .tabular-nums {
     font-variant-numeric: tabular-nums;
 }
+
+/* ==========================================================================
+   Top Command Bar Styles (Flat, Sharp Corners, Black & Warm Palette — No Curves, No Blue)
+   ========================================================================== */
+.top-command-header {
+    background: #FFF7D6 !important;
+    border-bottom: 1px solid #C8B670 !important;
+}
+
+.omnibar-box {
+    background: #FFFFFF !important;
+    border: 1px solid #C8B670 !important;
+    border-radius: 0px !important;
+    transition: border-color 150ms ease !important;
+}
+
+.omnibar-box:focus-within {
+    background: #FFFFFF !important;
+    border-color: #000000 !important;
+    box-shadow: none !important;
+}
+
+.omnibar-input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    font-size: 13px !important;
+    color: #000000 !important;
+    border-radius: 0px !important;
+}
+
+.omnibar-input::placeholder {
+    color: #64748B !important;
+}
+
+.btn-crawl-start {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: background-color 150ms ease !important;
+}
+
+.btn-crawl-start:hover {
+    background: #262626 !important;
+    color: #FFFFFF !important;
+}
+
+.btn-crawl-start:active {
+    transform: none !important;
+}
+
+.btn-crawl-stop {
+    background: #B91C1C !important;
+    color: #FFFFFF !important;
+    border: 1px solid #991B1B !important;
+    border-radius: 0px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: background-color 150ms ease !important;
+}
+
+.btn-crawl-stop:hover {
+    background: #991B1B !important;
+}
+
+.hud-box {
+    background: #FFFFFF !important;
+    border: 1px solid #C8B670 !important;
+    border-radius: 0px !important;
+}
+
+.top-btn-util {
+    background: #FFFFFF !important;
+    border: 1px solid #C8B670 !important;
+    border-radius: 0px !important;
+    color: #000000 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+    transition: all 120ms ease !important;
+}
+
+.top-btn-util:hover {
+    background: #FFE08A !important;
+    color: #000000 !important;
+    border-color: #C8B670 !important;
+}
+
+.top-btn-danger {
+    color: #B91C1C !important;
+}
+
+.top-btn-danger:hover {
+    background: #FEF2F2 !important;
+    border-color: #B91C1C !important;
+    color: #B91C1C !important;
+}
+
+.config-modal-panel {
+    border: 2px solid #000000 !important;
+    border-radius: 0px !important;
+    background: #FFFFFF !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+    z-index: 1000 !important;
+}
+
+.progress-track-flat {
+    background: #FFE08A !important;
+    border: 1px solid #C8B670 !important;
+    border-radius: 0px !important;
+    overflow: hidden !important;
+}
+
+.progress-fill-flat {
+    background: #000000 !important;
+    border-radius: 0px !important;
+    transition: width 200ms ease-out !important;
+}

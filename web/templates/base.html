@@ -40,74 +40,221 @@
     </script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Centralized State Store -->
+    <script src="/static/js/state.js"></script>
     <!-- Custom Style -->
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @keyframes crawlPulse {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(250%); }
+        }
+        .progress-indeterminate {
+            width: 45% !important;
+            animation: crawlPulse 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+        }
+    </style>
 </head>
 <body class="bg-[#FFF7D6] text-black flex flex-col h-screen w-screen overflow-hidden antialiased font-sans m-0 p-0 select-none">
 
-    <!-- Top Command Bar (Slate/Zinc Enterprise Theme) -->
-    <header class="bg-white border-b border-[#C8B670] px-3 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 text-sm z-20 ">
-        <!-- Left: Brand & Spider URL Input Bar -->
-        <div class="flex items-center gap-3 min-w-0 flex-wrap">
-            <a href="/" class="flex items-center gap-2 shrink-0 select-none no-underline" title="VAPLERS SEO Spider">
+    <!-- Top Command Bar (Streamlined, Professional, Gold & Cream Minimalist Palette) -->
+    <header class="top-command-header px-3 py-1.5 flex items-center justify-between gap-3 shrink-0 text-sm z-30 select-none bg-[#FFF7D6] border-b border-[#C8B670]">
+        <!-- Left Section: Clean Brand Logo -->
+        <div class="flex items-center gap-2.5 shrink-0">
+            <a href="/" class="flex items-center gap-1.5 shrink-0 select-none no-underline" title="VAPLERS SEO Spider">
                 <span class="brand-logo text-2xl tracking-wider uppercase leading-none font-normal" style="font-family: 'Bungee Shade', cursive !important; color: #000000;">VAPLERS</span>
             </a>
+        </div>
 
-            <span class="text-[#CBD5E1]">|</span>
-
-            <!-- Spider URL Input & Controls -->
-            <form id="spider-crawl-form" onsubmit="event.preventDefault(); startSpiderCrawl();" class="flex items-center gap-2 m-0 p-0">
-                <label for="spider-url-input" class="text-xs uppercase font-bold text-black shrink-0">Enter URL to spider:</label>
-                <input id="spider-url-input" type="url" required placeholder="https://example.com" 
-                       value="{{ audit.url if audit else '' }}" 
-                       class="bg-white border border-[#C8B670] px-3 py-1.5 text-sm text-black w-72 md:w-96 lg:w-[420px] focus:outline-none focus:border-[#7FA8D6] font-normal">
+        <!-- Center Section: Crawl Mode Pill + URL Omnibar + Sitemaps Drawer + Start/Stop -->
+        <div class="flex-1 flex justify-center items-center gap-2 max-w-4xl mx-auto min-w-0">
+            <form id="spider-crawl-form" onsubmit="event.preventDefault(); startSpiderCrawl();" class="flex items-center gap-1.5 m-0 p-0 w-full max-w-3xl">
                 
-                <button type="submit" id="spider-start-btn" class="btn-primary py-1.5 px-4 text-sm font-bold cursor-pointer">
-                    Start
+                <!-- Crawl Mode Selector: Spider vs Sitemap Only -->
+                <div class="inline-flex bg-white border border-[#C8B670] shadow-2xs shrink-0 text-xs">
+                    <button type="button" id="mode-btn-spider" onclick="setCrawlMode('spider')"
+                            class="px-2.5 py-1 font-bold bg-[#FFE08A] text-black border-r border-[#C8B670] cursor-pointer flex items-center gap-1"
+                            title="Full Spider: crawls entire site recursively discovering internal links">
+                        <span>🌐 Spider</span>
+                    </button>
+                    <button type="button" id="mode-btn-sitemap" onclick="setCrawlMode('sitemap')"
+                            class="px-2.5 py-1 font-normal bg-white text-black hover:bg-[#FFF2C2] cursor-pointer flex items-center gap-1"
+                            title="Sitemap Only: just crawl the sitemap pages without following outlinks">
+                        <span>📄 Sitemap Only</span>
+                    </button>
+                </div>
+
+                <!-- Omnibar URL & Sitemaps Input Box -->
+                <div class="flex-1 flex items-center bg-white border-2 border-[#C8B670] focus-within:border-black shadow-2xs relative">
+                    <span id="spider-input-label" class="bg-[#FFE08A] border-r border-[#C8B670] px-2 py-1 text-[10px] font-bold text-black uppercase shrink-0">URL</span>
+                    
+                    <input id="spider-url-input" type="text" required placeholder="https://example.com" 
+                           value="{{ audit.url if audit else '' }}" 
+                           oninput="updateSpiderInputClearBtn()"
+                           class="flex-1 bg-transparent border-none outline-none text-xs text-black font-normal px-2.5 py-1 min-w-[170px]">
+
+                    <!-- Sitemap URLs toggle / counter button (visible in sitemap mode) -->
+                    <button type="button" id="sitemap-list-btn" onclick="toggleSitemapsDropdown()" 
+                            class="hidden items-center gap-1 px-2 py-1 text-[11px] font-bold text-black bg-[#FFE08A] hover:bg-[#FFF2C2] border-l border-[#C8B670] cursor-pointer shrink-0"
+                            title="Specify 1 or more sitemap URLs for this site">
+                        <span id="sitemap-count-badge">Sitemaps (Auto) ▾</span>
+                    </button>
+
+                    <!-- Clear URL Button (✕) -->
+                    <button type="button" id="spider-clear-btn" onclick="clearSpiderInput()" 
+                            class="text-gray-400 hover:text-black p-0.5 cursor-pointer {% if not audit or not audit.url %}hidden{% endif %}" title="Clear URL">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+
+                    <!-- Limit Preset Button -->
+                    <button type="button" id="spider-config-btn" onclick="toggleSpiderConfigModal()" 
+                            class="flex items-center gap-0.5 px-2 py-1 text-xs font-bold text-black bg-[#FFE08A] hover:bg-[#FFF2C2] border-l border-[#C8B670] cursor-pointer shrink-0" 
+                            title="Configure Crawl Limits & Options">
+                        <span id="spider-limit-badge">Limit: ∞ ▾</span>
+                    </button>
+
+                    <!-- Multi-Sitemaps Dropdown Popup (1 or more sitemaps of same site) -->
+                    <div id="sitemaps-dropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border-2 border-black p-3 shadow-2xl z-50">
+                        <div class="flex items-center justify-between mb-1.5 pb-1 border-b border-[#C8B670]">
+                            <span class="text-xs font-bold uppercase text-black">Target Sitemaps (1 or more for this site)</span>
+                            <button type="button" onclick="toggleSitemapsDropdown()" class="text-black hover:text-red-700 font-bold text-xs p-0.5 cursor-pointer">✕</button>
+                        </div>
+                        <p class="text-[11px] text-slate-600 mb-1.5">
+                            Enter 1 or more sitemap XML URLs (one per line). If left blank, sitemaps will be auto-detected from <code>/sitemap.xml</code> and <code>robots.txt</code>.
+                        </p>
+                        <textarea id="sitemaps-input-text" rows="3" placeholder="https://example.com/sitemap.xml&#10;https://example.com/sitemap-products.xml&#10;https://example.com/sitemap-pages.xml"
+                                  class="w-full text-xs font-mono border border-[#C8B670] p-1.5 focus:outline-none focus:border-black resize-y"
+                                  oninput="updateSitemapsCountBadge()"></textarea>
+                        <div class="flex items-center justify-between mt-2 pt-1 border-t border-[#E2D5A0]">
+                            <span id="sitemap-parsed-summary" class="text-[10px] text-slate-500 font-mono">0 custom sitemaps (Auto-detect active)</span>
+                            <button type="button" onclick="toggleSitemapsDropdown()" class="bg-black hover:bg-neutral-800 text-white font-bold px-3 py-1 text-xs cursor-pointer">Apply</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <button type="submit" id="spider-start-btn" 
+                        class="bg-black hover:bg-neutral-800 text-white font-bold px-4 py-1 text-xs border border-black cursor-pointer flex items-center gap-1 shadow-2xs shrink-0">
+                    <span>Start</span>
                 </button>
-                <button type="button" id="spider-stop-btn" onclick="stopSpiderCrawl()" class="btn-secondary py-1.5 px-3 text-sm text-[#B91C1C] border-[#C8B670] hidden cursor-pointer font-medium">
-                    Stop
+
+                <!-- Stop Button -->
+                <button type="button" id="spider-stop-btn" onclick="stopSpiderCrawl()" 
+                        class="bg-[#B91C1C] hover:bg-red-700 text-white font-bold px-3.5 py-1 text-xs border border-[#B91C1C] cursor-pointer hidden flex items-center gap-1 shadow-2xs shrink-0">
+                    <span>Stop</span>
                 </button>
             </form>
 
-            <!-- Crawl Progress Gauge -->
-            <div id="crawl-progress-widget" class="flex items-center gap-2 text-xs font-medium text-black {% if not audit or audit.status == 'complete' %}hidden{% endif %}">
-                <span class="text-black font-semibold">Status:</span>
-                <span id="spider-status-text" class="text-black font-bold uppercase">{{ audit.status if audit else 'Ready' }}</span>
-                <div class="w-28 bg-[#FFE08A] h-2.5 border border-[#C8B670] overflow-hidden">
+            <!-- Live Crawl Progress HUD (Minimalist, Non-distracting) -->
+            <div id="crawl-progress-widget" class="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#C8B670] text-xs font-medium text-black shrink-0 shadow-2xs {% if not audit or audit.status == 'complete' %}hidden{% endif %}">
+                <span class="w-2 h-2 bg-emerald-600 inline-block animate-pulse"></span>
+                <span id="spider-status-text" class="text-black font-bold uppercase text-[11px]">{{ audit.status if audit else 'Ready' }}</span>
+                <div class="w-16 sm:w-24 bg-[#FFE08A] h-2 border border-[#C8B670] overflow-hidden relative">
                     <div id="spider-progress-bar" class="bg-black h-full transition-all duration-200" style="width: 0%"></div>
                 </div>
-                <span id="spider-progress-nums" class="text-black font-bold text-xs">0 / 0</span>
+                <span id="spider-progress-nums" class="text-black font-bold text-xs font-mono">0</span>
+                <span id="spider-speed" class="text-black font-mono text-xs font-bold hidden"></span>
+                <span id="spider-elapsed-time" class="text-neutral-600 font-mono text-xs hidden">⏱ 00:00</span>
             </div>
         </div>
 
-        <!-- Right: Recent Audits & Quick Export -->
-        <div class="flex items-center gap-3 shrink-0 text-sm">
+        <!-- Right Section: Clean, Minimal Navigation Tools (No Redundant Junk) -->
+        <div class="flex items-center gap-2 shrink-0 text-xs">
             {% if recent_audits %}
-            <div class="flex items-center gap-1.5">
-                <span class="text-xs font-bold uppercase text-black">Crawl:</span>
-                <select id="audit-switcher" onchange="window.location.href='/?audit_id=' + this.value" 
-                        class="bg-white border border-[#C8B670] px-2.5 py-1 text-sm text-black focus:outline-none focus:border-[#7FA8D6] max-w-[220px] truncate font-normal">
-                    {% for a in recent_audits %}
-                    <option value="{{ a.id }}" {% if audit and audit.id == a.id %}selected{% endif %}>
-                        {{ a.domain or a.url }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+            <select id="audit-switcher" onchange="window.location.href='/?audit_id=' + this.value" 
+                    class="bg-white border border-[#C8B670] px-2 py-0.5 text-xs text-black focus:outline-none max-w-[130px] truncate font-normal cursor-pointer shadow-2xs" title="Switch Audit">
+                {% for a in recent_audits %}
+                <option value="{{ a.id }}" {% if audit and audit.id == a.id %}selected{% endif %}>
+                    {{ a.domain or a.url }}
+                </option>
+                {% endfor %}
+            </select>
             {% endif %}
 
             {% if audit %}
-            <button type="button" onclick="clearAllDataAndReset()" class="btn-secondary py-1 px-2.5 text-xs font-medium text-[#B91C1C] border-[#C8B670] hover:bg-slate-50 flex items-center gap-1 cursor-pointer" title="Wipe stored crawl data and reset session">
-                <span>Reset / Clear</span>
-            </button>
-            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download class="btn-secondary py-1 px-3 text-xs font-medium border-[#C8B670] hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                <span>Export Full CSV</span>
+            <a href="/audit/{{ audit.id }}/issues" 
+               class="bg-white hover:bg-[#FFE08A] border border-[#C8B670] text-black font-bold px-2 py-0.5 text-xs no-underline flex items-center gap-1 shadow-2xs" 
+               title="View all detected SEO issues">
+                <span>Issues</span>
+                {% if audit.total_issues %}
+                <span class="bg-[#B91C1C] text-white text-[10px] px-1 font-mono font-bold">{{ audit.total_issues }}</span>
+                {% endif %}
             </a>
+
+            <a href="/audit/{{ audit.id }}/report" 
+               class="bg-white hover:bg-[#FFE08A] border border-[#C8B670] text-black font-bold px-2 py-0.5 text-xs no-underline shadow-2xs" 
+               title="View Executive Audit Report">
+                Report
+            </a>
+
+            <a href="/api/audit/{{ audit.id }}/export/urls.csv" download 
+               class="bg-white hover:bg-[#FFE08A] border border-[#C8B670] text-black font-bold px-2 py-0.5 text-xs no-underline shadow-2xs" 
+               title="Download full crawl data CSV">
+                Export
+            </a>
+
+            <button type="button" onclick="clearAllDataAndReset()" 
+                    class="bg-white hover:bg-red-50 border border-[#C8B670] hover:border-[#B91C1C] text-[#B91C1C] font-bold px-2 py-0.5 text-xs cursor-pointer shadow-2xs" 
+                    title="Reset Workspace & Clear Stored Data">
+                Reset
+            </button>
             {% endif %}
         </div>
     </header>
+
+    <!-- Fixed Crawl Options Modal (Never breaks layout, flat styling, no blue) -->
+    <div id="spider-config-modal" class="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center hidden" onclick="if(event.target === this) toggleSpiderConfigModal();">
+        <div class="bg-white border-2 border-black p-5 w-96 max-w-[92vw] shadow-2xl relative select-none" onclick="event.stopPropagation();">
+            <div class="flex items-center justify-between border-b border-[#C8B670] pb-2 mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-black">Crawl Configuration</span>
+                <button type="button" onclick="toggleSpiderConfigModal()" class="text-black hover:text-red-700 font-bold text-sm cursor-pointer p-1">✕</button>
+            </div>
+
+            <!-- Max Pages Limit -->
+            <div class="space-y-1.5 mb-4">
+                <div class="flex justify-between text-xs font-bold text-black">
+                    <span>Max Pages Limit:</span>
+                    <span id="modal-limit-display" class="font-mono text-black font-bold">Unlimited (0)</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1 text-xs">
+                    <button type="button" onclick="setSpiderLimit(0)" class="limit-btn py-1 px-1.5 text-center font-bold bg-black text-white border border-black cursor-pointer">∞</button>
+                    <button type="button" onclick="setSpiderLimit(100)" class="limit-btn py-1 px-1.5 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">100</button>
+                    <button type="button" onclick="setSpiderLimit(500)" class="limit-btn py-1 px-1.5 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">500</button>
+                    <button type="button" onclick="setSpiderLimit(1000)" class="limit-btn py-1 px-1.5 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">1k</button>
+                    <button type="button" onclick="setSpiderLimit(5000)" class="limit-btn py-1 px-1.5 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">5k</button>
+                </div>
+            </div>
+
+            <!-- Concurrency (Threads) -->
+            <div class="space-y-1.5 mb-4">
+                <div class="flex justify-between text-xs font-bold text-black">
+                    <span>Concurrency (Threads):</span>
+                    <span id="modal-conc-display" class="font-mono text-black font-bold">15 Normal</span>
+                </div>
+                <div class="grid grid-cols-4 gap-1 text-xs">
+                    <button type="button" onclick="setSpiderConcurrency(5)" class="conc-btn py-1 px-1 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">5 Gentle</button>
+                    <button type="button" onclick="setSpiderConcurrency(15)" class="conc-btn py-1 px-1 text-center font-bold bg-black text-white border border-black cursor-pointer">15 Normal</button>
+                    <button type="button" onclick="setSpiderConcurrency(25)" class="conc-btn py-1 px-1 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">25 Fast</button>
+                    <button type="button" onclick="setSpiderConcurrency(50)" class="conc-btn py-1 px-1 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer">50 Turbo</button>
+                </div>
+            </div>
+
+            <!-- User Agent Preset -->
+            <div class="space-y-1.5 mb-4">
+                <label class="text-xs font-bold text-black block">User Agent:</label>
+                <select id="modal-user-agent" onchange="setSpiderUserAgent(this.value)" class="w-full text-xs bg-white border border-[#C8B670] px-2.5 py-1.5 text-black font-normal focus:outline-none focus:border-black">
+                    <option value="default">Standard Chrome Desktop (Default)</option>
+                    <option value="googlebot_desktop">Googlebot Desktop</option>
+                    <option value="googlebot_mobile">Googlebot Smartphone (Mobile)</option>
+                    <option value="bingbot">Bingbot</option>
+                </select>
+            </div>
+
+            <div class="pt-3 border-t border-[#C8B670] flex justify-end">
+                <button type="button" onclick="toggleSpiderConfigModal()" class="bg-black hover:bg-neutral-800 text-white font-bold py-1.5 px-4 text-xs cursor-pointer border border-black">Done</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Single-Page Workspace -->
     <main class="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0 bg-[#FFF7D6] text-black">
@@ -119,11 +266,198 @@
     <script>
     let activeCrawlId = "{{ audit.id if audit else '' }}";
     let crawlWs = null;
+    let crawlTimerInterval = null;
+    let crawlStartTime = null;
+
+    let crawlConfig = {
+        max_pages: 0,
+        concurrency: 15,
+        crawl_delay: 0.0,
+        user_agent_preset: 'default',
+        mode: 'spider',
+        sitemaps_text: ''
+    };
+
+    function setCrawlMode(mode) {
+        crawlConfig.mode = mode;
+        const btnSpider = document.getElementById('mode-btn-spider');
+        const btnSitemap = document.getElementById('mode-btn-sitemap');
+        const sitemapBtn = document.getElementById('sitemap-list-btn');
+        const urlInput = document.getElementById('spider-url-input');
+        const urlLabel = document.getElementById('spider-input-label');
+
+        if (mode === 'sitemap') {
+            if (btnSitemap) btnSitemap.className = 'px-2.5 py-1 font-bold bg-[#FFE08A] text-black cursor-pointer flex items-center gap-1';
+            if (btnSpider) btnSpider.className = 'px-2.5 py-1 font-normal bg-white text-black hover:bg-[#FFF2C2] border-r border-[#C8B670] cursor-pointer flex items-center gap-1';
+            if (sitemapBtn) {
+                sitemapBtn.classList.remove('hidden');
+                sitemapBtn.classList.add('flex');
+            }
+            if (urlLabel) urlLabel.textContent = 'SITE';
+            if (urlInput) urlInput.placeholder = 'https://example.com (or enter sitemaps via button)';
+        } else {
+            if (btnSpider) btnSpider.className = 'px-2.5 py-1 font-bold bg-[#FFE08A] text-black border-r border-[#C8B670] cursor-pointer flex items-center gap-1';
+            if (btnSitemap) btnSitemap.className = 'px-2.5 py-1 font-normal bg-white text-black hover:bg-[#FFF2C2] cursor-pointer flex items-center gap-1';
+            if (sitemapBtn) {
+                sitemapBtn.classList.add('hidden');
+                sitemapBtn.classList.remove('flex');
+            }
+            const sitemapsDropdown = document.getElementById('sitemaps-dropdown');
+            if (sitemapsDropdown) sitemapsDropdown.classList.add('hidden');
+            if (urlLabel) urlLabel.textContent = 'URL';
+            if (urlInput) urlInput.placeholder = 'https://example.com';
+        }
+    }
+
+    function toggleSitemapsDropdown() {
+        const el = document.getElementById('sitemaps-dropdown');
+        if (el) {
+            el.classList.toggle('hidden');
+            if (!el.classList.contains('hidden')) {
+                const ta = document.getElementById('sitemaps-input-text');
+                if (ta) ta.focus();
+            }
+        }
+    }
+
+    function updateSitemapsCountBadge() {
+        const ta = document.getElementById('sitemaps-input-text');
+        const badge = document.getElementById('sitemap-count-badge');
+        const summary = document.getElementById('sitemap-parsed-summary');
+        if (!ta) return;
+        const lines = ta.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        crawlConfig.sitemaps_text = ta.value;
+        if (lines.length > 0) {
+            if (badge) badge.textContent = `Sitemaps (${lines.length}) ▾`;
+            if (summary) summary.textContent = `${lines.length} custom sitemap URL(s) specified`;
+        } else {
+            if (badge) badge.textContent = `Sitemaps (Auto) ▾`;
+            if (summary) summary.textContent = `0 custom sitemaps (Auto-detect from robots.txt & /sitemap.xml)`;
+        }
+    }
+
+    function updateSpiderInputClearBtn() {
+        const input = document.getElementById('spider-url-input');
+        const clearBtn = document.getElementById('spider-clear-btn');
+        if (input && clearBtn) {
+            if (input.value.trim().length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+        }
+    }
+
+    function clearSpiderInput() {
+        const input = document.getElementById('spider-url-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+            updateSpiderInputClearBtn();
+        }
+    }
+
+    function startNewSpiderCrawl() {
+        const input = document.getElementById('spider-url-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+            updateSpiderInputClearBtn();
+        }
+        if (activeCrawlId && window.location.search.includes('audit_id')) {
+            window.location.href = '/';
+        }
+    }
+
+    function toggleSpiderConfigModal() {
+        const modal = document.getElementById('spider-config-modal');
+        if (modal) {
+            modal.classList.toggle('hidden');
+        }
+    }
+
+    function setSpiderLimit(limit) {
+        crawlConfig.max_pages = parseInt(limit) || 0;
+        const badge = document.getElementById('spider-limit-badge');
+        const display = document.getElementById('modal-limit-display');
+        if (badge) {
+            badge.textContent = crawlConfig.max_pages === 0 ? 'Limit: ∞' : `Limit: ${crawlConfig.max_pages}`;
+        }
+        if (display) {
+            display.textContent = crawlConfig.max_pages === 0 ? 'Unlimited (0)' : `${crawlConfig.max_pages} pages`;
+        }
+        document.querySelectorAll('.limit-btn').forEach(btn => {
+            const isMatch = (crawlConfig.max_pages === 0 && btn.textContent.includes('∞')) ||
+                            (crawlConfig.max_pages > 0 && btn.textContent.trim() === String(crawlConfig.max_pages)) ||
+                            (crawlConfig.max_pages === 1000 && btn.textContent.includes('1k')) ||
+                            (crawlConfig.max_pages === 5000 && btn.textContent.includes('5k'));
+            if (isMatch) {
+                btn.className = 'limit-btn py-1 px-1.5 text-center font-bold bg-black text-white border border-black cursor-pointer';
+            } else {
+                btn.className = 'limit-btn py-1 px-1.5 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer';
+            }
+        });
+    }
+
+    function setSpiderConcurrency(conc) {
+        crawlConfig.concurrency = parseInt(conc) || 15;
+        const display = document.getElementById('modal-conc-display');
+        if (display) {
+            display.textContent = `${crawlConfig.concurrency} threads`;
+        }
+        document.querySelectorAll('.conc-btn').forEach(btn => {
+            if (btn.textContent.includes(String(crawlConfig.concurrency))) {
+                btn.className = 'conc-btn py-1 px-1 text-center font-bold bg-black text-white border border-black cursor-pointer';
+            } else {
+                btn.className = 'conc-btn py-1 px-1 text-center font-normal bg-white text-black border border-[#C8B670] hover:bg-[#FFE08A] cursor-pointer';
+            }
+        });
+    }
+
+    function setSpiderUserAgent(ua) {
+        crawlConfig.user_agent_preset = ua;
+    }
+
+    function startTimer() {
+        if (crawlTimerInterval) clearInterval(crawlTimerInterval);
+        crawlStartTime = Date.now();
+        const timerEl = document.getElementById('spider-elapsed-time');
+        if (timerEl) {
+            timerEl.classList.remove('hidden');
+            timerEl.textContent = '⏱ 00:00';
+        }
+        crawlTimerInterval = setInterval(() => {
+            if (!crawlStartTime) return;
+            const elapsed = Math.floor((Date.now() - crawlStartTime) / 1000);
+            const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const s = String(elapsed % 60).padStart(2, '0');
+            if (timerEl) timerEl.textContent = `⏱ ${m}:${s}`;
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (crawlTimerInterval) {
+            clearInterval(crawlTimerInterval);
+            crawlTimerInterval = null;
+        }
+    }
 
     async function startSpiderCrawl() {
         const input = document.getElementById('spider-url-input');
-        const url = input.value.trim();
-        if (!url) return;
+        let raw = input.value.trim();
+        if (!raw) return;
+
+        // Clean any duplicate or repeated protocols (e.g. https://https:// or http://https://)
+        let cleaned = raw.replace(/^(https?:\/\/)+/i, '');
+
+        // If user specifically entered http://, preserve http://, otherwise default to https://
+        let url;
+        if (raw.toLowerCase().startsWith('http://')) {
+            url = 'http://' + cleaned;
+        } else {
+            url = 'https://' + cleaned;
+        }
+        input.value = url;
 
         const startBtn = document.getElementById('spider-start-btn');
         const stopBtn = document.getElementById('spider-stop-btn');
@@ -136,16 +470,42 @@
         progressWidget.classList.remove('hidden');
         statusText.textContent = "INITIALIZING";
 
+        startTimer();
+
         try {
             const res = await fetch('/api/audit/start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url, max_pages: 500, concurrency: 15 })
+                body: JSON.stringify({ 
+                    url: url, 
+                    max_pages: crawlConfig.max_pages, 
+                    concurrency: crawlConfig.concurrency,
+                    crawl_delay: crawlConfig.crawl_delay,
+                    user_agent_preset: crawlConfig.user_agent_preset,
+                    mode: crawlConfig.mode || 'spider',
+                    sitemaps_text: crawlConfig.sitemaps_text || ''
+                })
             });
             const data = await res.json();
             if (data.audit_id) {
                 activeCrawlId = data.audit_id;
                 statusText.textContent = "CRAWLING";
+
+                // Update URL in browser address bar without full reload
+                const newUrl = `/?audit_id=${data.audit_id}&tab=all`;
+                if (window.history && window.history.pushState) {
+                    window.history.pushState({ auditId: data.audit_id }, '', newUrl);
+                }
+
+                // Immediately clear and bind workspace table for live streaming
+                try {
+                    if (typeof window.resetWorkspaceForCrawl === 'function') {
+                        window.resetWorkspaceForCrawl(data.audit_id, url);
+                    }
+                } catch (workspaceErr) {
+                    console.error("Workspace reset notice:", workspaceErr);
+                }
+
                 connectCrawlWs(data.audit_id);
             }
         } catch (err) {
@@ -154,11 +514,13 @@
             startBtn.disabled = false;
             startBtn.classList.remove('opacity-50');
             stopBtn.classList.add('hidden');
+            stopTimer();
         }
     }
 
     async function stopSpiderCrawl() {
         if (!activeCrawlId) return;
+        stopTimer();
         try {
             await fetch(`/api/audit/${activeCrawlId}/stop`, { method: 'POST' });
             if (crawlWs) crawlWs.close();
@@ -171,6 +533,7 @@
 
     async function clearAllDataAndReset() {
         if (!confirm("Are you sure you want to clear all crawl data and caches?")) return;
+        stopTimer();
         try {
             if (crawlWs) crawlWs.close();
             await fetch('/api/audit/clear', { method: 'POST' });
@@ -189,33 +552,100 @@
         function finishAndRedirect() {
             if (redirected) return;
             redirected = true;
+            stopTimer();
             if (pollTimer) clearInterval(pollTimer);
             const pBar = document.getElementById('spider-progress-bar');
             const pText = document.getElementById('spider-status-text');
             if (pBar) pBar.style.width = '100%';
             if (pText) pText.textContent = 'COMPLETE (100%)';
-            setTimeout(() => {
-                window.location.href = `/?audit_id=${auditId}&tab=all&t=${Date.now()}`;
-            }, 500);
+            
+            const startBtn = document.getElementById('spider-start-btn');
+            const stopBtn = document.getElementById('spider-stop-btn');
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.classList.remove('opacity-50');
+            }
+            if (stopBtn) stopBtn.classList.add('hidden');
+
+            // If we're on workspace page with live table, just refresh data instead of redirecting
+            if (typeof window.onCrawlComplete === 'function') {
+                setTimeout(() => { window.onCrawlComplete(); }, 300);
+            } else {
+                setTimeout(() => {
+                    window.location.href = `/?audit_id=${auditId}&tab=all&t=${Date.now()}`;
+                }, 500);
+            }
         }
 
         crawlWs.onmessage = (evt) => {
             try {
                 const msg = JSON.parse(evt.data);
+                if (window.AppState && typeof window.AppState.handleWsMessage === 'function') {
+                    window.AppState.handleWsMessage(msg);
+                }
+
                 if (msg.type === 'progress') {
                     const crawled = msg.crawled || 0;
-                    const total = msg.total || 1;
-                    const pct = Math.min(100, Math.round((crawled / total) * 100));
-                    document.getElementById('spider-progress-bar').style.width = pct + '%';
-                    document.getElementById('spider-progress-nums').textContent = `${crawled} / ${total}`;
-                    document.getElementById('spider-status-text').textContent = `CRAWLING (${pct}%)`;
+                    const maxPages = msg.max_pages !== undefined ? msg.max_pages : (window.AppState ? window.AppState.crawl.maxPages : 0);
+                    const speed = msg.pages_per_sec || 0;
+                    const pBar = document.getElementById('spider-progress-bar');
+                    const pNums = document.getElementById('spider-progress-nums');
+                    const pText = document.getElementById('spider-status-text');
+                    const pSpeed = document.getElementById('spider-speed');
+
+                    if (pSpeed && speed > 0) {
+                        pSpeed.classList.remove('hidden');
+                        pSpeed.textContent = `(${speed}/s)`;
+                    }
+
+                    const topbarPages = document.getElementById('topbar-total-pages');
+                    if (topbarPages) topbarPages.textContent = crawled;
+
+                    if (!maxPages || maxPages === 0) {
+                        // UNLIMITED MODE: Do NOT show misleading total queue count!
+                        if (pBar) {
+                            pBar.classList.add('progress-indeterminate');
+                        }
+                        if (pNums) pNums.textContent = `${crawled} pages crawled`;
+                        if (pText) pText.textContent = `CRAWLING`;
+                    } else {
+                        // LIMITED MODE: Real progress percentage
+                        if (pBar) pBar.classList.remove('progress-indeterminate');
+                        const pct = Math.min(100, Math.round((crawled / maxPages) * 100));
+                        if (pBar) pBar.style.width = pct + '%';
+                        if (pNums) pNums.textContent = `${crawled} / ${maxPages}`;
+                        if (pText) pText.textContent = `CRAWLING (${pct}%)`;
+                    }
+
+                    // Forward page row(s) to workspace table if handler is registered
+                    if (msg.page_rows && Array.isArray(msg.page_rows)) {
+                        if (typeof window.onCrawlPageRows === 'function') {
+                            window.onCrawlPageRows(msg.page_rows);
+                        } else if (typeof window.onCrawlPageRow === 'function') {
+                            msg.page_rows.forEach(r => window.onCrawlPageRow(r));
+                        }
+                    } else if (msg.page_row && typeof window.onCrawlPageRow === 'function') {
+                        window.onCrawlPageRow(msg.page_row);
+                    }
                 } else if (msg.type === 'status' && msg.status === 'analyzing') {
+                    const pBar = document.getElementById('spider-progress-bar');
+                    if (pBar) pBar.classList.remove('progress-indeterminate');
                     document.getElementById('spider-status-text').textContent = 'ANALYZING...';
-                    document.getElementById('spider-progress-bar').style.width = '95%';
+                    if (pBar) pBar.style.width = '95%';
+                } else if (msg.type === 'analyzers_tier2_complete') {
+                    const st = document.getElementById('spider-status-text');
+                    if (st) st.textContent = 'CORE AUDIT READY (CALCULATING PAGERANK)...';
+                    if (typeof window.onCrawlTier2Complete === 'function') {
+                        window.onCrawlTier2Complete();
+                    }
                 } else if (msg.type === 'complete') {
+                    const pBar = document.getElementById('spider-progress-bar');
+                    if (pBar) pBar.classList.remove('progress-indeterminate');
                     finishAndRedirect();
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error("Error handling crawl WS message", e);
+            }
         };
 
         crawlWs.onclose = () => {
@@ -243,9 +673,24 @@
                     const pBar = document.getElementById('spider-progress-bar');
                     if (pText) pText.textContent = 'ANALYZING...';
                     if (pBar) pBar.style.width = '95%';
-                } else if (st.status === 'stopped' || st.status === 'error') {
+                } else if (st.status === 'stopped') {
                     clearInterval(pollTimer);
-                    window.location.href = `/?audit_id=${auditId}`;
+                    finishAndRedirect();
+                } else if (st.status === 'error') {
+                    clearInterval(pollTimer);
+                    stopTimer();
+                    const pText = document.getElementById('spider-status-text');
+                    if (pText) pText.textContent = 'STOPPED (WITH ERRORS)';
+                    const startBtn = document.getElementById('spider-start-btn');
+                    const stopBtn = document.getElementById('spider-stop-btn');
+                    if (startBtn) {
+                        startBtn.disabled = false;
+                        startBtn.classList.remove('opacity-50');
+                    }
+                    if (stopBtn) stopBtn.classList.add('hidden');
+                    if (typeof window.onCrawlComplete === 'function') {
+                        window.onCrawlComplete();
+                    }
                 }
             } catch (e) {}
         }, 2000);
